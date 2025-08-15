@@ -1,4 +1,4 @@
-# I Built a Glass Box: A Single-File Python App for Trustworthy AI Code Analysis
+# Trustworthy AI Code Analysis
 
 We've all been there: starting a new job or joining a new team, you're faced with a sprawling, unfamiliar codebase. The `README` is a month out of date, and your only guide is the `git blame` history. Where do you even begin? The traditional approach involves hours of painstaking detective work, grepping for a `main` function and slowly piecing together the puzzle.
 
