@@ -1,5 +1,7 @@
 # Trustworthy AI Code Analysis
 
+![](xpl.png)
+
 We've all been there: starting a new job or joining a new team, you're faced with a sprawling, unfamiliar codebase. The `README` is a month out of date, and your only guide is the `git blame` history. Where do you even begin? The traditional approach involves hours of painstaking detective work, grepping for a `main` function and slowly piecing together the puzzle.
 
 What if you could have an expert AI architect sit with you, point out the critical files, and then answer your questions with complete transparency? And what if this entire powerful experience was delivered in a **single, self-contained Python script** you can run locally against any codebase?
