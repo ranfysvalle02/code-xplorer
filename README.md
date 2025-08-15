@@ -1,3 +1,88 @@
+## This Single Python File is a Self-Contained AI Code Analyst
+
+We've all been there: starting a new job or joining a new team, you're faced with a sprawling, unfamiliar codebase. The `README` is a month out of date, and your only guide is the `git blame` history. Where do you even begin? The traditional approach involves hours of painstaking detective work, grepping for a `main` function and slowly piecing together the puzzle.
+
+What if you could have an expert AI architect sit with you, point out the critical files, and then answer your questions with complete transparency? And what if this entire powerful experience was delivered in a **single, self-contained Python script** you can run locally against any codebase?
+
+That’s not a future concept; it’s the reality of the `app.py` script below. It’s a complete, local-first web tool I built called **Code Explorer AI**, designed to transform AI from an opaque black box into a trustworthy, transparent partner for developers.
+
+-----
+
+### The Power of Being Local and Self-Contained
+
+Before we dive into the AI magic, let's talk about the architecture, because it’s a core feature. The entire application—backend server, frontend interface, and all the logic—lives in one `app.py` file.
+
+This isn't just a novelty; it's a design choice that prioritizes the developer experience:
+
+  * **Zero-Friction Setup:** There's no complex installation, no Docker containers, no multi-service orchestration. With `#!/usr/bin/env python3` at the top, you can often make it executable and run it like any other command-line tool (`./app.py`). It’s the ultimate grab-and-go utility.
+  * **Privacy and Security:** You can point it at a local directory containing proprietary code with confidence. The tool scans your files on your machine. Nothing is sent to an external service until you explicitly select code and ask a question.
+  * **Ultimate Portability:** Drop this file into any project directory, run it, and you instantly have a dedicated analyst for that codebase. It’s a tool, not a cumbersome platform.
+
+-----
+
+### A New Workflow: The Three Steps to Code Clarity
+
+Code Explorer AI guides you through a structured, three-step process that moves from a high-level overview to granular, specific questions, building trust at every stage.
+
+#### Step 1: The AI Architect Gives You a Tour
+
+When you first point the tool at a codebase (either a local path or a GitHub URL), it doesn't just present you with a wall of files. It uses an AI model, prompted as a "software architect," to perform its first crucial task: **intelligent file selection**.
+
+It analyzes the entire file tree and identifies the 5-7 most important files for understanding the project's purpose—entry points, configurations, core business logic—and then explains *why* it chose them.
+
+This is the AI's first act of transparency. Instead of you hunting for the starting point, the AI hands you a map and explains the key landmarks.
+
+#### Step 2: The Developer Takes Command
+
+The AI's recommendation is a starting point, not a mandate. The real power comes from the interactive context builder. The UI displays the full file tree, allowing you to expand files and see their high-level structure (classes and functions), which are parsed on the backend.
+
+You are in complete control. You can select:
+
+  * An entire file.
+  * A specific class within a file.
+  * A single function you need to understand.
+
+This allows you to create a precise, surgical context for your questions. You're not just dumping thousands of lines of code into a prompt; you're focusing the AI's attention on exactly what matters to you.
+
+#### Step 3: A Transparent Conversation with Reasoning
+
+Once you've built your context, you can start the conversation. This is where the shift from "black box" to "glass box" becomes clear, thanks to Azure OpenAI's `responses` API.
+
+When you ask a question like, "How does user authentication work based on the selected files?" the backend calls the model using `client.responses.create` with the `reasoning` parameter enabled.
+
+```python
+# A key snippet from the backend get_reasoned_llm_response function
+response = client.responses.create(
+    input=prompt_text,
+    model=model_deployment,
+    # This is the magic parameter!
+    reasoning={"effort": "high", "summary": "detailed"}
+)
+```
+
+The result is transformative. You don't just get a final answer. You get the answer *and* a step-by-step breakdown of the AI's thought process.
+
+**Black Box AI:**
+
+> "User authentication is handled by verifying a JWT token."
+
+**Glass Box AI (with Reasoning):**
+
+> **Reasoning:**
+>
+> 1.  *User asks about authentication.*
+> 2.  *Scanning context, I see `auth_controller.py` and `jwt_service.py` were provided.*
+> 3.  *In `auth_controller.py`, the `/login` route uses the `jwt_service.create_token()` method.*
+> 4.  *In `jwt_service.py`, the `verify_token()` function checks the token's signature and expiration.*
+>
+> **Answer:**
+> Based on the provided files, user authentication is managed through a JWT (JSON Web Token) system. The process begins in `auth_controller.py`...
+
+This audit trail allows you to verify the AI's logic against the source code, building confidence and ensuring you can trust the conclusion.
+
+----
+
+
 ## From Black Box to Glass Box: Building Trustworthy AI with Reasoning APIs
 
 Artificial intelligence is phenomenal at analyzing complex information, but it has a trust problem. When you ask an AI to analyze a codebase, how do you know it's right? How did it arrive at its conclusion? If you can't see the "thought process," you're trusting a black box, which can be risky when dealing with intricate software projects.
