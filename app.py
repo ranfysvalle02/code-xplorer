@@ -31,15 +31,47 @@ IGNORE_DIRS = {'.git', '.github', '__pycache__', 'node_modules', 'venv', '.vscod
 IGNORE_EXTS = {'.pyc', '.log', '.env', '.DS_Store', '.tmp', '.swo', '.swp'}
 BINARY_EXTS = {'.png', '.jpg', '.jpeg', '.gif', 'ico', '.zip', '.gz', '.pdf', '.exe', '.dll', '.so', '.webp', '.svg'}
 
+# --- EXPANDED: Action Tagging Definitions ---
+ACTION_DEFINITIONS = {
+    'data-storage': {
+        'imports': {
+            'sqlalchemy', 'django.db', 'pymongo', 'psycopg2', 'mysql.connector',
+            'sqlite3', 'redis', 'cassandra', 'motor', 'asyncpg', 'peewee',
+            'mongoose', 'sequelize', 'prisma', 'typeorm', 'knex', 'slonik', 'pg',
+            'records', 'aiosqlite'
+        },
+        'regex': re.compile(
+            r'\.Model|\.Base|\.Schema|DeclarativeBase|BaseModel|DataTypes\.|new Sequelize|PrismaClient|createConnection',
+            re.IGNORECASE
+        ),
+        'base_classes': {'Model', 'Base', 'DeclarativeBase', 'BaseModel'}
+    },
+    'network-request': {
+        'imports': {'requests', 'aiohttp', 'httpx', 'urllib3', 'fetch', 'axios', 'got', 'superagent', 'fastapi', 'flask'},
+        'regex': re.compile(
+            r'\.get\(|\.post\(|\.put\(|\.delete\(|fetch\(|axios\.|urllib3\.PoolManager|'
+            r'app\.route\(|@app\.get\(|@app\.post\(|express\.Router\(|\.get\("/api',
+            re.IGNORECASE
+        )
+    },
+    'file-io': {
+        'imports': {'os', 'shutil', 'pathlib', 'fs'},
+        'regex': re.compile(
+            r'open\(|readFile|writeFile|readFileSync|writeFileSync|pathlib\.|'
+            r'os\.path|fs\.promises',
+            re.IGNORECASE
+        )
+    }
+}
+
+
 # --- Global variables ---
-SCANNED_FILES_DATA = {}
 SCANNED_FILES_STRUCTURE = {}
-WHOLE_FILE_SUMMARY_CACHE = {}  # Session-based cache for whole-file summaries
-SCAN_BASE_PATH = None
-mongo_client, db, code_collection = None, None, None  # For MongoDB state
+WHOLE_FILE_SUMMARY_CACHE = {}
+mongo_client, db, code_collection = None, None, None
+SCAN_SESSIONS = {}
 
 # --- State for Background Indexing ---
-INDEXING_STATUS = {"running": False, "progress": 0, "total": 0, "message": "Not started"}
 indexing_lock = threading.Lock()
 
 # --- Azure OpenAI Client Configuration ---
@@ -179,11 +211,10 @@ def clone_repo_to_tempdir(repo_url):
         raise
 
 
-def scan_directory(path='.'):
-    """Scans a directory and returns a dictionary of relative_path: {content, char_count}."""
-    global SCANNED_FILES_DATA, SCANNED_FILES_STRUCTURE, WHOLE_FILE_SUMMARY_CACHE
-    SCANNED_FILES_DATA, SCANNED_FILES_STRUCTURE, WHOLE_FILE_SUMMARY_CACHE = {}, {}, {}
-    logging.info(f"Starting directory scan at: {os.path.abspath(path)}")
+def scan_directory(path, session_id):
+    """Scans a directory and populates the session with file data, including action tags."""
+    scanned_files_data = {}
+    logging.info(f"[{session_id}] Starting directory scan at: {os.path.abspath(path)}")
 
     for root, dirs, files in os.walk(path):
         dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
@@ -195,131 +226,181 @@ def scan_directory(path='.'):
                     with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                         content = f.read()
                         relative_path = os.path.relpath(file_path, path)
-                        SCANNED_FILES_DATA[relative_path] = {
+                        
+                        _, file_tags = parse_code_structure(relative_path, content)
+
+                        scanned_files_data[relative_path] = {
                             "content": content,
-                            "char_count": len(content)
+                            "char_count": len(content),
+                            "tags": file_tags
                         }
                 except Exception as e:
-                    logging.warning(f"Could not read file {file_path}: {e}")
+                    logging.warning(f"[{session_id}] Could not read file {file_path}: {e}")
 
-    logging.info(f"Scan complete. Found {len(SCANNED_FILES_DATA)} relevant files.")
-    return SCANNED_FILES_DATA
+    logging.info(f"[{session_id}] Scan complete. Found {len(scanned_files_data)} relevant files.")
+    SCAN_SESSIONS[session_id]['scanned_files_data'] = scanned_files_data
+
+
+# --- NEW: Robust Code Parsing Engine ---
 
 class PythonCodeParser(ast.NodeVisitor):
+    """A more robust AST parser for Python."""
     def __init__(self):
         self.structure = []
 
     def visit_FunctionDef(self, node):
-        self.structure.append({
-            'name': node.name,
-            'type': 'function',
-            'start_line': node.lineno - 1,
-            'end_line': node.end_lineno -1
-        })
+        self.structure.append({'name': node.name, 'type': 'function', 'start_line': node.lineno, 'end_line': node.end_lineno})
         self.generic_visit(node)
 
     def visit_AsyncFunctionDef(self, node):
         self.visit_FunctionDef(node)
 
     def visit_ClassDef(self, node):
-        self.structure.append({
-            'name': node.name,
-            'type': 'class',
-            'start_line': node.lineno - 1,
-            'end_line': node.end_lineno - 1
-        })
+        self.structure.append({'name': node.name, 'type': 'class', 'start_line': node.lineno, 'end_line': node.end_lineno})
         self.generic_visit(node)
 
+def _parse_python_structure(content):
+    """Parses Python code using AST."""
+    try:
+        tree = ast.parse(content)
+        parser = PythonCodeParser()
+        parser.visit(tree)
+        return sorted(parser.structure, key=lambda x: x['start_line'])
+    except SyntaxError:
+        return [] # Return empty list if AST parsing fails
+
+def _parse_js_ts_structure(content):
+    """Parses JS/TS code using a comprehensive set of regex patterns."""
+    structure = []
+    # This single regex captures a wide array of function and class declarations
+    pattern = re.compile(
+        r'^(?:export\s+(?:default\s+)?|const|let|var)?'  # Optional keywords
+        r'(?:async\s+)?'  # Optional async
+        r'(?:function\s*\*?\s*([\w$]+)\s*\(|'  # Named function
+        r'([\w$]+)\s*=\s*(?:async\s*)?\(|'  # Arrow function assigned to var
+        r'class\s+([\w$]+)(?:\s+extends\s+[\w$.]+)?\s*\{|'  # Class declaration
+        r'interface\s+([\w$]+)\s*\{|' # TypeScript Interface
+        r'type\s+([\w$]+)\s*=\s*\{)' # TypeScript Type Alias
+        r')', re.MULTILINE)
+
+    for match in pattern.finditer(content):
+        # Find the first non-None group to get the name
+        name = next((g for g in match.groups() if g is not None), None)
+        if not name:
+            continue
+            
+        line_number = content.count('\n', 0, match.start()) + 1
+        
+        # Determine type based on the matched text
+        full_match_text = match.group(0)
+        item_type = 'function'
+        if 'class' in full_match_text:
+            item_type = 'class'
+        elif 'interface' in full_match_text:
+            item_type = 'interface'
+        elif 'type' in full_match_text:
+             item_type = 'interface' # Treat TS types like interfaces for UI purposes
+
+        structure.append({'name': name, 'type': item_type, 'start_line': line_number})
+        
+    return sorted(structure, key=lambda x: x['start_line'])
+
+def get_imports_from_content(content):
+    """Extracts imported modules from file content using regex."""
+    imports = set()
+    # Handles import {..} from '..', import .. from '..', require('..')
+    import_pattern = re.compile(r'import(?:.*?from\s*)?[\'"]([^\'"]+)[\'"]|require\([\'"]([^\'"]+)[\'"]\)')
+    matches = import_pattern.findall(content)
+    for match in matches:
+        # match is a tuple of groups, e.g., ('react', '') or ('', 'express')
+        module_name = next((g for g in match if g), None)
+        if module_name:
+            # Handle relative paths vs library names
+            if not module_name.startswith(('.', '/')):
+                imports.add(module_name.split('/')[0]) # Get base package name
+    return imports
+
+def analyze_content_for_tags(content, imports):
+    """Analyzes a block of code for action tags."""
+    tags = set()
+    for tag, definition in ACTION_DEFINITIONS.items():
+        if imports.intersection(definition['imports']):
+            tags.add(tag)
+        if definition['regex'].search(content):
+            tags.add(tag)
+    return sorted(list(tags))
+
+
 def parse_code_structure(file_path, content):
-    """Parses code content to find high-level structures like classes and functions."""
+    """
+    Main dispatcher for parsing. Selects parser based on file extension, then assigns tags.
+    """
     ext = os.path.splitext(file_path)[1].lower()
+    structure = []
 
     if ext == '.py':
-        try:
-            tree = ast.parse(content)
-            parser = PythonCodeParser()
-            parser.visit(tree)
-            return sorted(parser.structure, key=lambda x: x['start_line'])
-        except SyntaxError as e:
-            logging.warning(f"AST parsing failed for {file_path}: {e}. Falling back to regex.")
-            pass
+        structure = _parse_python_structure(content)
+    elif ext in ['.js', '.jsx', '.ts', '.tsx']:
+        structure = _parse_js_ts_structure(content)
 
-    structure = []
-    lines = content.splitlines()
+    all_imports = get_imports_from_content(content)
+    file_level_tags = set()
 
-    patterns = {
-        '.py': [
-            ('class', re.compile(r'^\s*class\s+([a-zA-Z_][a-zA-Z0-9_]*)')),
-            ('function', re.compile(r'^\s*def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\('))
-        ],
-        '.js': [
-            ('class', re.compile(r'^\s*class\s+([a-zA-Z_][a-zA-Z0-9_]*)')),
-            ('function', re.compile(r'^\s*(?:async\s+)?function\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\(')),
-            ('function', re.compile(r'^\s*(?:const|let|var)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(?:async\s*)?\(([^)]*)\)\s*=>')),
-            ('function', re.compile(r'^\s*export\s+(?:async\s+)?function\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\('))
-        ],
-    }
-    lang_patterns = patterns.get(ext, [])
-    if not lang_patterns:
-        return []
+    for item in structure:
+        item_code = extract_code_block(content, item['start_line'], item.get('end_line'), ext)
+        item_tags = analyze_content_for_tags(item_code, all_imports)
+        item['tags'] = item_tags
+        file_level_tags.update(item_tags)
 
-    for i, line in enumerate(lines):
-        for type, pattern in lang_patterns:
-            match = pattern.match(line)
-            if match:
-                structure.append({'name': match.group(1), 'type': type, 'start_line': i})
-                break
-    return structure
+    if not file_level_tags: # If no structure, analyze whole file
+        file_level_tags.update(analyze_content_for_tags(content, all_imports))
+
+    return structure, sorted(list(file_level_tags))
 
 
 def extract_code_block(content, start_line, end_line=None, file_ext='.js'):
-    """Extracts a full code block (function/class) based on AST end_line or indentation/braces."""
+    """Extracts a full code block using end_line from AST or brace/indentation counting."""
     lines = content.splitlines()
+    start_line_idx = start_line - 1
 
-    if end_line is not None and end_line < len(lines):
-        return '\n'.join(lines[start_line : end_line + 1])
+    if start_line_idx >= len(lines):
+        return ""
 
-    block_lines = []
+    if end_line is not None and end_line <= len(lines):
+        return '\n'.join(lines[start_line_idx : end_line])
+
+    # Fallback logic if end_line is not provided
     if file_ext == '.py':
-        if start_line >= len(lines): return ""
-        initial_indent_str = re.match(r'^(\s*)', lines[start_line]).group(1)
-        block_lines.append(lines[start_line])
-        for i in range(start_line + 1, len(lines)):
+        initial_indent = len(lines[start_line_idx]) - len(lines[start_line_idx].lstrip(' '))
+        block_lines = [lines[start_line_idx]]
+        for i in range(start_line_idx + 1, len(lines)):
             line = lines[i]
             if line.strip() == "":
+                block_lines.append(line)
                 continue
-            current_indent_str = re.match(r'^(\s*)', line).group(1)
-            if len(current_indent_str) > len(initial_indent_str):
+            current_indent = len(line) - len(line.lstrip(' '))
+            if current_indent > initial_indent:
                 block_lines.append(line)
             else:
                 break
-    else:
-        if start_line >= len(lines): return ""
+        return '\n'.join(block_lines)
+    else: # Brace-based languages
+        block_lines = []
         brace_count = 0
         in_block = False
-        block_started = False
-        for i in range(start_line, len(lines)):
+        for i in range(start_line_idx, len(lines)):
             line = lines[i]
-            if not block_started:
-                block_lines.append(line)
-
-            if '{' in line:
-                in_block = True
-                block_started = True
-
-            if not in_block:
-                continue
-
-            if i > start_line and block_started and line not in block_lines:
-                 block_lines.append(line)
-
+            block_lines.append(line)
             brace_count += line.count('{')
             brace_count -= line.count('}')
-
-            if brace_count <= 0 and in_block:
+            if brace_count > 0:
+                in_block = True
+            if in_block and brace_count <= 0:
                 break
-
-    return '\n'.join(block_lines)
+            # Handle single-line arrow functions without braces
+            if i == start_line_idx and '=>' in line and not line.strip().endswith('{'):
+                break
+        return '\n'.join(block_lines)
 
 
 def get_voyage_embedding(text: str) -> list[float]:
@@ -347,16 +428,8 @@ def create_search_indexes():
                 "name": TEXT_INDEX_NAME,
                 "definition": {
                     "mappings": {
-                        "dynamic": False,
-                        "fields": {
-                            "item_name": {"type": "string", "analyzer": "lucene.standard"},
-                            "description": {"type": "string", "analyzer": "lucene.standard"},
-                            "summary": {"type": "string", "analyzer": "lucene.standard"},
-                            "code": {"type": "string", "analyzer": "lucene.standard"},
-                            "file_path": {"type": "stringKeyword"},
-                            "session_id": {"type": "stringKeyword"}
-                        }
-                    }
+                        "dynamic": True,
+                        "fields": { "tags": {"type": "string", "analyzer": "lucene.keyword"}}}
                 }
             }
             code_collection.create_search_index(model=text_index_model)
@@ -377,9 +450,8 @@ def create_search_indexes():
                                 "dimensions": VOYAGE_EMBEDDING_DIMENSIONS,
                                 "similarity": "cosine"
                             },
-                           "session_id": {
-                                "type": "token"
-                           }
+                           "session_id": {"type": "token"},
+                           "tags": {"type": "token"}
                         }
                     }
                 }
@@ -399,102 +471,86 @@ def create_search_indexes():
 
 def _index_one_snippet(snippet_data):
     """Worker function to process and index a single code snippet with its summary."""
-    global INDEXING_STATUS
+    session_id = snippet_data['session_id']
+    with indexing_lock:
+        SCAN_SESSIONS[session_id]['indexing_status']["progress"] += 1
+
     file_path = snippet_data['file_path']
     item_name = snippet_data['item_name']
     code_to_process = snippet_data['code']
-    session_id = snippet_data['session_id']
+    tags = snippet_data.get('tags', [])
     unique_id = f"{session_id}-{file_path}::{item_name}"
 
     try:
         if not code_to_process.strip():
             return "Skipped empty snippet"
 
-        # 1. Generate description for search index
+        # 1. Generate description
         indexing_prompt = f"Describe this code:\n\n```\n{code_to_process}\n```"
-        indexing_messages = [
-            {"role": "system", "content": CODE_INDEXING_SYSTEM_PROMPT},
-            {"role": "user", "content": indexing_prompt}
-        ]
+        indexing_messages = [{"role": "system", "content": CODE_INDEXING_SYSTEM_PROMPT}, {"role": "user", "content": indexing_prompt}]
         desc_response = get_llm_response(client, indexing_messages, DEPLOYMENT)
         description_for_index = desc_response['answer']
         if "[Error" in description_for_index:
               raise Exception(f"LLM error for description: {description_for_index}")
 
-        # 2. Generate summary for user display
+        # 2. Generate summary
         summary_prompt = f"Summarize this code:\n\n```\n{code_to_process}\n```"
-        summary_messages = [
-            {"role": "system", "content": CODE_SUMMARY_SYSTEM_PROMPT},
-            {"role": "user", "content": summary_prompt}
-        ]
+        summary_messages = [{"role": "system", "content": CODE_SUMMARY_SYSTEM_PROMPT}, {"role": "user", "content": summary_prompt}]
         summary_response = get_llm_response(client, summary_messages, DEPLOYMENT)
         user_facing_summary = summary_response['answer']
         if "[Error" in user_facing_summary:
               raise Exception(f"LLM error for summary: {user_facing_summary}")
 
-        # 3. Generate vector embedding
+        # 3. Generate embedding
         embedding = get_voyage_embedding(code_to_process)
 
-        # 4. Prepare and save the document
+        # 4. Save document
         document = {
-            "session_id": session_id,
-            "file_path": file_path,
-            "item_name": item_name,
-            "code": code_to_process,
-            "description": description_for_index,
-            "summary": user_facing_summary,
-            "embedding": embedding,
+            "session_id": session_id, "file_path": file_path, "item_name": item_name,
+            "code": code_to_process, "description": description_for_index,
+            "summary": user_facing_summary, "embedding": embedding, "tags": tags
         }
-        code_collection.update_one(
-            {"_id": unique_id},
-            {"$set": document},
-            upsert=True
-        )
+        code_collection.update_one({"_id": unique_id}, {"$set": document}, upsert=True)
         return f"Successfully indexed"
     except Exception as e:
         logging.error(f"Failed to index snippet {unique_id}: {e}")
         return f"Failed to index"
-    finally:
-        with indexing_lock:
-            INDEXING_STATUS["progress"] += 1
-
 
 def process_and_index_snippets(files_data, session_id):
     """
     Finds all code snippets in the scanned files and indexes them in parallel for a given session.
     """
-    global INDEXING_STATUS
     if code_collection is None or client is None or voyage_client is None:
-        logging.error("Cannot start indexing: one or more clients (Mongo, OpenAI, Voyage) are not configured.")
+        msg = "Cannot start indexing: one or more clients (Mongo, OpenAI, Voyage) are not configured."
+        logging.error(f"[{session_id}] {msg}")
+        SCAN_SESSIONS[session_id]['status'] = 'error'
+        SCAN_SESSIONS[session_id]['error_message'] = msg
         return
 
     snippets_to_process = []
     for file_path, data in files_data.items():
         content = data["content"]
-        structure = parse_code_structure(file_path, content)
+        structure, _ = parse_code_structure(file_path, content)
         file_ext = os.path.splitext(file_path)[1].lower()
 
         for item in structure:
             code_block = extract_code_block(content, item['start_line'], item.get('end_line'), file_ext)
+            if not code_block.strip(): continue # Skip empty blocks
+            
             snippets_to_process.append({
-                "file_path": file_path,
-                "item_name": item['name'],
-                "code": code_block,
-                "session_id": session_id
+                "file_path": file_path, "item_name": item['name'], "code": code_block,
+                "session_id": session_id, "tags": item.get('tags', [])
             })
 
     if not snippets_to_process:
-        logging.warning("No code snippets (functions/classes) found to index.")
-        INDEXING_STATUS = {"running": False, "progress": 0, "total": 0, "message": "No snippets found"}
+        logging.warning(f"[{session_id}] No code snippets (functions/classes) found to index.")
+        SCAN_SESSIONS[session_id]['indexing_status'] = {"running": False, "progress": 0, "total": 0, "message": "No snippets found"}
         return
 
-    INDEXING_STATUS = {
-        "running": True,
-        "progress": 0,
-        "total": len(snippets_to_process),
-        "message": "Indexing in progress..."
+    SCAN_SESSIONS[session_id]['indexing_status'] = {
+        "running": True, "progress": 0, "total": len(snippets_to_process), "message": "Indexing in progress..."
     }
-    logging.info(f"[{session_id}] Found {INDEXING_STATUS['total']} snippets. Starting parallel indexing...")
+    logging.info(f"[{session_id}] Found {len(snippets_to_process)} snippets. Starting parallel indexing...")
 
     try:
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
@@ -503,15 +559,65 @@ def process_and_index_snippets(files_data, session_id):
                 try:
                     future.result()
                 except Exception as exc:
-                    logging.error(f'A task generated an exception: {exc}')
+                    logging.error(f'[{session_id}] A task generated an exception: {exc}')
 
         logging.info(f"[{session_id}] Background indexing complete.")
-        INDEXING_STATUS["message"] = "Indexing complete"
+        SCAN_SESSIONS[session_id]['indexing_status']["message"] = "Indexing complete"
     except Exception as e:
         logging.error(f"[{session_id}] An error occurred during parallel indexing: {e}")
-        INDEXING_STATUS["message"] = f"Error during indexing: {e}"
+        SCAN_SESSIONS[session_id]['indexing_status']["message"] = f"Error during indexing: {e}"
     finally:
-        INDEXING_STATUS["running"] = False
+        SCAN_SESSIONS[session_id]['indexing_status']["running"] = False
+
+
+def background_scan_and_index(session_id, path_or_url):
+    """The main background worker function."""
+    scan_path = None
+    is_temp_dir = False
+    session = SCAN_SESSIONS.get(session_id)
+    if not session:
+        logging.error(f"Session {session_id} not found for background worker.")
+        return
+
+    try:
+        repo_info = parse_github_input(path_or_url)
+        if repo_info:
+            session['status'] = 'cloning'
+            session['message'] = f"Cloning {repo_info['name']}..."
+            scan_path = clone_repo_to_tempdir(repo_info["url"])
+            session['display_name'] = repo_info["name"]
+            is_temp_dir = True
+        elif os.path.isdir(path_or_url):
+            scan_path = path_or_url
+            session['display_name'] = os.path.basename(os.path.abspath(path_or_url))
+        else:
+            raise ValueError(f"Input '{path_or_url}' is not a valid directory or a recognized GitHub repository format.")
+
+        session['status'] = 'scanning'
+        session['message'] = 'Scanning files...'
+        scan_directory(scan_path, session_id)
+
+        if not session.get('scanned_files_data'):
+             raise FileNotFoundError("Scan complete, but no relevant code files were found.")
+
+        session['status'] = 'indexing'
+        session['message'] = 'Scan complete. Starting indexing...'
+        session['scan_complete'] = True
+
+        process_and_index_snippets(session['scanned_files_data'].copy(), session_id)
+
+        session['status'] = 'complete'
+        session['message'] = 'All processes complete.'
+        logging.info(f"[{session_id}] background worker finished successfully.")
+
+    except Exception as e:
+        logging.error(f"[{session_id}] Error in background worker: {e}")
+        session['status'] = 'error'
+        session['error_message'] = str(e)
+    finally:
+        if is_temp_dir and scan_path and os.path.isdir(scan_path):
+            logging.info(f"[{session_id}] Cleaning up temporary directory: {scan_path}")
+            shutil.rmtree(scan_path)
 
 
 # --- Flask Routes ---
@@ -520,76 +626,88 @@ def process_and_index_snippets(files_data, session_id):
 def index():
     return render_template('index.html')
 
-@app.route('/status')
-def status():
-    """Returns the current status of the background indexing job."""
-    return jsonify(INDEXING_STATUS)
+@app.route('/scan_status/<session_id>')
+def get_scan_status(session_id):
+    """Returns the current status of a scan and indexing job."""
+    session = SCAN_SESSIONS.get(session_id)
+    if not session:
+        return jsonify({"error": "Session not found."}), 404
+
+    response_data = {
+        "status": session.get('status'),
+        "message": session.get('message'),
+        "error": session.get('error_message'),
+        "displayName": session.get('display_name'),
+        "indexingStatus": session.get('indexing_status', {})
+    }
+
+    if session.get('scan_complete') and not session.get('files_sent'):
+        files_data = session.get('scanned_files_data', {})
+        files_for_frontend = [
+            {"path": path, "char_count": data["char_count"], "content": data["content"], "tags": data["tags"]}
+            for path, data in files_data.items()
+        ]
+        files_for_frontend.sort(key=lambda x: x['path'])
+        response_data['files'] = files_for_frontend
+        session['files_sent'] = True
+
+    return jsonify(response_data)
 
 
 @app.route('/scan', methods=['POST'])
 def scan():
     """Handles scanning and starts background indexing."""
-    global SCAN_BASE_PATH, INDEXING_STATUS
     data = request.get_json()
     path_or_url = data.get('path', '.').strip() or '.'
-    scan_path, display_name = None, ""
 
-    try:
-        session_id = str(uuid.uuid4())
-        INDEXING_STATUS = {"running": False, "progress": 0, "total": 0, "message": "Starting scan..."}
+    session_id = str(uuid.uuid4())
+    SCAN_SESSIONS[session_id] = {
+        "status": "starting",
+        "message": "Initializing...",
+        "scan_complete": False,
+        "files_sent": False,
+        "scanned_files_data": {},
+        "indexing_status": {},
+        "error_message": None,
+        "display_name": ""
+    }
 
-        repo_info = parse_github_input(path_or_url)
-        if repo_info:
-            scan_path = clone_repo_to_tempdir(repo_info["url"])
-            display_name = repo_info["name"]
-        elif os.path.isdir(path_or_url):
-            scan_path = path_or_url
-            display_name = os.path.basename(os.path.abspath(path_or_url))
-        else:
-            return jsonify({"error": f"Input '{path_or_url}' is not a valid directory or a recognized GitHub repository format."}), 400
+    if len(SCAN_SESSIONS) > 10:
+        oldest_session = next(iter(SCAN_SESSIONS))
+        del SCAN_SESSIONS[oldest_session]
 
-        files_found_data = scan_directory(scan_path)
-        SCAN_BASE_PATH = scan_path
+    thread = threading.Thread(target=background_scan_and_index, args=(session_id, path_or_url))
+    thread.start()
 
-        if not files_found_data:
-            return jsonify({"error": "Scan complete, but no relevant code files were found."}), 404
-
-        indexing_thread = threading.Thread(target=process_and_index_snippets, args=(files_found_data.copy(), session_id))
-        indexing_thread.start()
-
-        files_for_frontend = [
-            {"path": path, "char_count": data["char_count"], "content": data["content"]}
-            for path, data in files_found_data.items()
-        ]
-        files_for_frontend.sort(key=lambda x: x['path'])
-
-        return jsonify({
-            "sessionId": session_id,
-            "displayName": display_name,
-            "files": files_for_frontend,
-        })
-    except Exception as e:
-        logging.error(f"An unexpected error occurred during scanning: {e}")
-        return jsonify({"error": f"An unexpected error occurred: {e}"}), 500
-
+    return jsonify({"sessionId": session_id}), 202
 
 @app.route('/structure', methods=['POST'])
 def get_structure():
     """Parses a file and returns its structure (functions, classes). Caches results."""
     data = request.get_json()
     file_path = data.get('path')
-    if not file_path:
-        return jsonify({"error": "File path is required."}), 400
+    session_id = data.get('sessionId')
 
-    if file_path in SCANNED_FILES_STRUCTURE:
-        return jsonify(SCANNED_FILES_STRUCTURE[file_path])
-    if file_path in SCANNED_FILES_DATA:
-        content = SCANNED_FILES_DATA[file_path]["content"]
-        structure = parse_code_structure(file_path, content)
-        SCANNED_FILES_STRUCTURE[file_path] = structure
+    if not all([file_path, session_id]):
+        return jsonify({"error": "File path and session ID are required."}), 400
+
+    session = SCAN_SESSIONS.get(session_id)
+    if not session or not session.get('scanned_files_data'):
+         return jsonify({"error": "Session not found or scan not complete."}), 404
+    
+    scanned_files_data = session['scanned_files_data']
+
+    cache_key = f"{session_id}::{file_path}"
+    if cache_key in SCANNED_FILES_STRUCTURE:
+        return jsonify(SCANNED_FILES_STRUCTURE[cache_key])
+
+    if file_path in scanned_files_data:
+        content = scanned_files_data[file_path]["content"]
+        structure, _ = parse_code_structure(file_path, content)
+        SCANNED_FILES_STRUCTURE[cache_key] = structure
         return jsonify(structure)
 
-    return jsonify({"error": "File not found in scanned data."}), 404
+    return jsonify({"error": "File not found in scanned data for this session."}), 404
 
 @app.route('/extract_snippet', methods=['POST'])
 def extract_snippet():
@@ -597,16 +715,26 @@ def extract_snippet():
     data = request.get_json()
     file_path = data.get('path')
     item_name = data.get('name')
+    session_id = data.get('sessionId')
 
-    if not file_path or not item_name:
-        return jsonify({"error": "File path and item name are required."}), 400
-    if file_path not in SCANNED_FILES_DATA:
+    if not all([file_path, item_name, session_id]):
+        return jsonify({"error": "File path, item name, and session ID are required."}), 400
+    
+    session = SCAN_SESSIONS.get(session_id)
+    if not session or 'scanned_files_data' not in session:
+        return jsonify({"error": "Session data not found."}), 404
+    
+    scanned_files_data = session['scanned_files_data']
+    if file_path not in scanned_files_data:
         return jsonify({"error": "File not found in scanned data."}), 404
 
-    content = SCANNED_FILES_DATA[file_path]["content"]
-    structure = SCANNED_FILES_STRUCTURE.get(file_path) or parse_code_structure(file_path, content)
-    if file_path not in SCANNED_FILES_STRUCTURE:
-        SCANNED_FILES_STRUCTURE[file_path] = structure
+    content = scanned_files_data[file_path]["content"]
+    
+    cache_key = f"{session_id}::{file_path}"
+    structure = SCANNED_FILES_STRUCTURE.get(cache_key)
+    if not structure:
+        structure, _ = parse_code_structure(file_path, content)
+        SCANNED_FILES_STRUCTURE[cache_key] = structure
 
     item_data = next((item for item in structure if item['name'] == item_name), None)
 
@@ -634,7 +762,13 @@ def summarize():
 
     if not all([session_id, file_path]):
         return jsonify({"error": "Session ID and file path are required."}), 400
-    if file_path not in SCANNED_FILES_DATA:
+    
+    session = SCAN_SESSIONS.get(session_id)
+    if not session or 'scanned_files_data' not in session:
+        return jsonify({"error": "Session data not found."}), 404
+    
+    scanned_files_data = session['scanned_files_data']
+    if file_path not in scanned_files_data:
         return jsonify({"error": "File not found in scanned data."}), 404
 
     if item_name:
@@ -649,14 +783,14 @@ def summarize():
         if document and "summary" in document:
             return jsonify({"answer": document["summary"]})
         else:
-            return jsonify({"error": f"Summary for '{item_name}' not found. It may still be indexing."}), 404
+            return jsonify({"answer": "Summary not found in the index. It may still be processing. Please try again shortly."})
 
     else:
         cache_key = f"{session_id}::{file_path}"
         if cache_key in WHOLE_FILE_SUMMARY_CACHE:
             return jsonify({"answer": WHOLE_FILE_SUMMARY_CACHE[cache_key]})
 
-        content = SCANNED_FILES_DATA[file_path]["content"]
+        content = scanned_files_data[file_path]["content"]
         context_name = f"the file `{file_path}`"
         summary_prompt = f"Please summarize {context_name}:\n\n```\n{content}\n```"
         summary_messages = [
@@ -676,10 +810,16 @@ def chat():
     """Handles chat, builds context, and gets a response from the LLM."""
     if not client:
         return jsonify({"error": "Azure OpenAI client is not configured. Check server .env file."}), 500
-    if not SCANNED_FILES_DATA:
+    
+    data = request.get_json()
+    session_id = data.get('sessionId')
+    if not session_id or session_id not in SCAN_SESSIONS:
+         return jsonify({"error": "Invalid or expired session. Please scan a repository again."}), 400
+
+    scanned_files_data = SCAN_SESSIONS[session_id]['scanned_files_data']
+    if not scanned_files_data:
         return jsonify({"error": "Please scan a directory or repository first."}), 400
 
-    data = request.get_json()
     user_question = data.get('question')
     selected_items = data.get('selected_items', {})
     selected_summaries = data.get('selected_summaries', [])
@@ -709,15 +849,19 @@ def chat():
             )
 
     for file_path, items in selected_items.items():
-        if file_path not in SCANNED_FILES_DATA:
+        if file_path not in scanned_files_data:
             continue
 
-        content = SCANNED_FILES_DATA[file_path]["content"]
+        content = scanned_files_data[file_path]["content"]
         if "__all__" in items:
             code_context_parts.append(f"--- FILE: {file_path} ---\n\n{content}\n\n")
         else:
-            structure = SCANNED_FILES_STRUCTURE.get(file_path) or parse_code_structure(file_path, content)
-            SCANNED_FILES_STRUCTURE[file_path] = structure
+            cache_key = f"{session_id}::{file_path}"
+            structure = SCANNED_FILES_STRUCTURE.get(cache_key)
+            if not structure:
+                structure, _ = parse_code_structure(file_path, content)
+                SCANNED_FILES_STRUCTURE[cache_key] = structure
+            
             item_map = {s['name']: s for s in structure}
             file_ext = os.path.splitext(file_path)[1].lower()
             for item_name in items:
@@ -772,12 +916,7 @@ def search():
                                         "queryVector": query_embedding,
                                         "numCandidates": 100,
                                         "limit": 10,
-                                        # FIX: $vectorSearch's filter uses standard MQL, not Atlas Search syntax.
-                                        "filter": {
-                                            "session_id": {
-                                                "$eq": session_id
-                                            }
-                                        }
+                                        "filter": { "session_id": { "$eq": session_id } }
                                     }
                                 }
                             ],
@@ -785,20 +924,9 @@ def search():
                                 {
                                     "$search": {
                                         "index": "default_text_index",
-                                        # The 'compound' operator correctly uses Atlas Search 'term' syntax for its filter.
                                         "compound": {
-                                            "must": [{
-                                                "text": {
-                                                    "query": query,
-                                                    "path": ["item_name", "description", "summary", "code"]
-                                                }
-                                            }],
-                                            "filter": [{
-                                                "term": {
-                                                    "path": "session_id",
-                                                    "query": session_id
-                                                }
-                                            }]
+                                            "must": [{"text": {"query": query, "path": ["item_name", "description", "summary", "code"]}}],
+                                            "filter": [{"term": {"path": "session_id", "query": session_id}}]
                                         }
                                     }
                                 },
@@ -806,12 +934,7 @@ def search():
                             ]
                         }
                     },
-                    "combination": {
-                        "weights": {
-                            "vectorPipeline": 0.7,
-                            "fullTextPipeline": 0.3
-                        }
-                    },
+                    "combination": { "weights": { "vectorPipeline": 0.7, "fullTextPipeline": 0.3 }},
                     "scoreDetails": True
                 }
             },
@@ -819,6 +942,7 @@ def search():
                 "$project": {
                     "_id": 0, "file_path": 1, "item_name": 1,
                     "description": 1, "summary": 1, "code": 1,
+                    "tags": 1, # Return the tags
                     "scoreDetails": { "$meta": "scoreDetails" }
                 }
             },

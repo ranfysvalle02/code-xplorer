@@ -15,7 +15,6 @@
         ::-webkit-scrollbar-thumb { background: #4A5568; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #718096; }
         
-        /* --- NEW --- Header Animation */
         .mongodb-green {
             background-image: linear-gradient(90deg, #00ED64, #a7f3d0, #00ED64);
             background-size: 200% auto;
@@ -25,11 +24,7 @@
             animation: animate-gradient 5s linear infinite;
         }
 
-        @keyframes animate-gradient {
-            to {
-                background-position: -200% center;
-            }
-        }
+        @keyframes animate-gradient { to { background-position: -200% center; } }
 
         .mongodb-green-bg { background-color: #00684A; }
         .mongodb-green-bg-hover:hover { background-color: #00ED64; color: #121921; }
@@ -42,6 +37,8 @@
         .markdown-content ul { list-style-type: disc; margin-left: 1.5rem; }
         details > summary { cursor: pointer; list-style: none; }
         details > summary::-webkit-details-marker { display: none; }
+        details summary .details-arrow { transition: transform 0.2s; }
+        details[open] summary .details-arrow { transform: rotate(90deg); }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fadeInUp { animation: fadeInUp 0.3s ease-out forwards; }
         @keyframes pulse-shadow {
@@ -49,20 +46,16 @@
             70% { box-shadow: 0 0 0 12px rgba(0, 237, 100, 0); }
             100% { box-shadow: 0 0 0 0 rgba(0, 237, 100, 0); }
         }
-        .glow-on-ready {
-            animation: pulse-shadow 1.5s 2;
-        }
+        .glow-on-ready { animation: pulse-shadow 1.5s 2; }
         @keyframes flash-success {
             0% { box-shadow: 0 0 0 0 rgba(192, 132, 252, 0); }
             50% { box-shadow: 0 0 8px 3px rgba(192, 132, 252, 0.7); }
             100% { box-shadow: 0 0 0 0 rgba(192, 132, 252, 0); }
         }
-        .flash-on-add {
-            animation: flash-success 1.5s ease-out;
-        }
+        .flash-on-add { animation: flash-success 1.5s ease-out; }
         .text-type-class { color: #C77DDd; } /* Purple */
         .text-type-function { color: #61AFEF; } /* Blue */
-        .text-type-type { color: #56B6C2; } /* Teal */
+        .text-type-interface { color: #56B6C2; } /* Teal */
         .text-type-module { color: #E5C07B; } /* Yellow */
         .context-meter-gradient { background: linear-gradient(to right, #22c55e, #facc15, #ef4444); }
         .chat-context-meter-gradient { background: linear-gradient(to right, #38bdf8, #a78bfa, #f472b6); }
@@ -71,7 +64,7 @@
         .context-indicator-bar.partial { background-image: repeating-linear-gradient(-45deg, #6b7280, #6b7280 5px, #4a5568 5px, #4a5568 10px); }
         .token-display { display: flex; align-items: center; gap: 0.5rem; font-family: monospace; font-size: 0.75rem; color: #9CA3AF; flex-shrink: 0; }
         .token-color-dot { width: 0.5rem; height: 0.5rem; border-radius: 9999px; }
-        .file-label-wrapper { flex-grow: 1; min-width: 0; }
+        .file-label-wrapper { flex-grow: 1; min-w: 0; display: flex; align-items: center; gap: 0.5rem;}
         .file-label { text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
         .bubble-actions { position: absolute; bottom: -12px; right: 10px; display: flex; gap: 6px; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
         .chat-bubble-ai:hover .bubble-actions { opacity: 1; pointer-events: auto; }
@@ -82,95 +75,28 @@
         .summarize-btn:disabled { color: #6b7280; cursor: not-allowed; }
         .summary-container { border-left: 2px solid #a78bfa; background-color: rgba(167, 139, 250, 0.05); }
         .file-checkbox:disabled + * { opacity: 0.5; cursor: not-allowed; }
-        .indexing-overlay {
-            backdrop-filter: blur(4px);
-            background-color: rgba(18, 25, 33, 0.8);
-            transition: opacity 0.3s ease-in-out;
-        }
-        .recommended-file-link {
-            cursor: pointer;
-            color: #6ee7b7;
-            text-decoration: underline;
-            text-decoration-style: dotted;
-        }
-        .recommended-file-link:hover {
-            color: #a7f3d0;
-        }
+        .indexing-overlay { backdrop-filter: blur(4px); background-color: rgba(18, 25, 33, 0.8); transition: opacity 0.3s ease-in-out; }
         @keyframes breathe {
             0%, 100% { box-shadow: 0 0 5px rgba(0, 237, 100, 0.2), 0 0 10px rgba(0, 237, 100, 0.2); }
             50% { box-shadow: 0 0 15px rgba(0, 237, 100, 0.6), 0 0 25px rgba(0, 237, 100, 0.6); }
         }
-        .progress-bar-glow {
-            animation: breathe 2s ease-in-out infinite;
-        }
-        .modal-code-preview {
-             background-color: #0e131a;
-             border: 1px solid #4A5568;
-             border-radius: 8px;
-             padding: 1rem;
-             font-family: monospace;
-             font-size: 0.8rem;
-             max-height: calc(90vh - 150px);
-             overflow-y: auto;
-             white-space: pre-wrap;
-             word-break: break-all;
-        }
+        .progress-bar-glow { animation: breathe 2s ease-in-out infinite; }
+        .modal-code-preview { background-color: #0e131a; border: 1px solid #4A5568; border-radius: 8px; padding: 1rem; font-family: monospace; font-size: 0.8rem; max-height: calc(90vh - 150px); overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+        
+        .action-filter-btn { background-color: #374151; color: #d1d5db; border: 1px solid #4b5563; }
+        .action-filter-btn.active { border-color: #00ED64; color: #00ED64; background-color: rgba(0, 237, 100, 0.1); }
+        .action-tag-icon { color: #9ca3af; }
+        /* NEW: Folder Styles */
+        .folder-summary { display: flex; align-items: center; padding: 0.3rem 0.5rem; cursor: pointer; hover:bg-gray-700/50; border-radius: 0.375rem; }
+        .folder-summary:hover { background-color: rgba(75, 85, 99, 0.5); }
+        .folder-content { padding-left: 1.25rem; }
     </style>
 </head>
 <body class="flex flex-col h-screen">
 
     <header class="flex items-center justify-between p-4 border-b mongodb-border shadow-lg">
         <div class="flex items-center space-x-3">
-            <svg class="w-8 h-8" style="color: #00ED64;" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-            <style>
-                @keyframes pulse {
-                0%, 100% {
-                    transform: scale(1);
-                    opacity: 1;
-                }
-                50% {
-                    transform: scale(1.1);
-                    opacity: 0.7;
-                }
-                }
-                @keyframes rotate {
-                from {
-                    transform: rotate(0deg);
-                }
-                to {
-                    transform: rotate(360deg);
-                }
-                }
-                @keyframes scan-fade {
-                0%, 100% {
-                    opacity: 0;
-                }
-                25%, 75% {
-                    opacity: 1;
-                }
-                }
-                .pulse {
-                animation: pulse 3s infinite;
-                transform-origin: center;
-                }
-                .scanner {
-                animation: rotate 5s linear infinite;
-                transform-origin: center;
-                }
-                .scanner-dot {
-                animation: scan-fade 2.5s infinite;
-                }
-                .scanner-dot-2 {
-                animation: scan-fade 2.5s infinite;
-                animation-delay: 1.25s;
-                }
-            </style>
-            <path class="pulse" d="M16.889 12.042C16.889 15.783 13.824 18.848 10.083 18.848C6.342 18.848 3.277 15.783 3.277 12.042C3.277 8.301 6.342 5.236 10.083 5.236C10.113 5.236 10.142 5.237 10.172 5.237C10.232 5.237 10.29 5.236 10.35 5.236C10.35 6.428 10.813 7.525 11.583 8.301C12.354 9.076 13.451 9.539 14.643 9.539C14.643 9.599 14.644 9.657 14.644 9.717C14.644 9.747 14.645 9.776 14.645 9.806C15.93 9.926 16.889 10.885 16.889 12.162L16.889 12.042ZM14.643 7.46C13.818 7.46 13.088 7.047 12.639 6.388C12.981 6.331 13.334 6.302 13.702 6.302C15.991 6.302 17.86 8.171 17.86 10.46C17.86 10.828 17.831 11.181 17.774 11.523C17.115 11.074 16.602 10.344 16.602 9.539C16.602 8.371 15.749 7.46 14.643 7.46Z" />
-            <g class="scanner">
-                <circle class="scanner-dot" cx="12" cy="2" r="1" />
-                <rect class="scanner-dot-2" x="20" y="11" width="2" height="2" rx="0.5"/>
-            </g>
-            </svg>
+            <svg class="w-8 h-8" style="color: #00ED64;" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><style>@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.1);opacity:.7}}@keyframes rotate{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}@keyframes scan-fade{0%,100%{opacity:0}25%,75%{opacity:1}}.pulse{animation:pulse 3s infinite;transform-origin:center}.scanner{animation:rotate 5s linear infinite;transform-origin:center}.scanner-dot{animation:scan-fade 2.5s infinite}.scanner-dot-2{animation:scan-fade 2.5s infinite;animation-delay:1.25s}</style><path class="pulse" d="M16.889 12.042C16.889 15.783 13.824 18.848 10.083 18.848C6.342 18.848 3.277 15.783 3.277 12.042C3.277 8.301 6.342 5.236 10.083 5.236C10.113 5.236 10.142 5.237 10.172 5.237C10.232 5.237 10.29 5.236 10.35 5.236C10.35 6.428 10.813 7.525 11.583 8.301C12.354 9.076 13.451 9.539 14.643 9.539C14.643 9.599 14.644 9.657 14.644 9.717C14.644 9.747 14.645 9.776 14.645 9.806C15.93 9.926 16.889 10.885 16.889 12.162L16.889 12.042ZM14.643 7.46C13.818 7.46 13.088 7.047 12.639 6.388C12.981 6.331 13.334 6.302 13.702 6.302C15.991 6.302 17.86 8.171 17.86 10.46C17.86 10.828 17.831 11.181 17.774 11.523C17.115 11.074 16.602 10.344 16.602 9.539C16.602 8.371 15.749 7.46 14.643 7.46Z"></path><g class="scanner"><circle class="scanner-dot" cx="12" cy="2" r="1"></circle><rect class="scanner-dot-2" x="20" y="11" width="2" height="2" rx="0.5"></rect></g></svg>
             <h1 class="text-2xl font-bold text-white" style="margin-left:0.25rem;">Code<span class="mongodb-green">Whisperer</span></h1>
         </div>
         <div class="flex items-center space-x-4">
@@ -209,17 +135,28 @@
             <div id="search-section" class="hidden">
                 <h2 class="text-lg font-semibold mb-2">Search Code Snippets</h2>
                  <div class="flex space-x-2">
-                    <div class="relative flex-1">
+                     <div class="relative flex-1">
                          <input type="text" id="search-input" placeholder="Search indexed code..." class="w-full p-2 rounded-md bg-gray-800 border mongodb-border focus:outline-none focus:ring-2 focus:ring-green-500 transition-all duration-300 pr-8" disabled>
                          <button id="clear-search-btn" class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors p-1" title="Clear search">
                              <i class="fa-solid fa-xmark"></i>
                          </button>
+                     </div>
+                     <button id="search-btn" class="px-4 py-2 font-semibold rounded-md mongodb-green-bg mongodb-green-bg-hover transition-all duration-200 active:scale-95" disabled>
+                         <span id="search-btn-text"><i class="fa-solid fa-search"></i></span>
+                         <svg id="search-spinner" class="animate-spin h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                     </button>
+                 </div>
+                <details class="mt-2 text-sm">
+                    <summary class="cursor-pointer text-gray-400 hover:text-white transition-colors"><i class="fa-solid fa-chevron-right details-arrow mr-2"></i>How does Hybrid Search work?</summary>
+                    <div class="p-2 mt-1 bg-gray-900/50 rounded-md text-xs text-gray-300 border mongodb-border">
+                        This app uses MongoDB Atlas Search's <strong>$rankFusion</strong> stage to combine two search methods:
+                        <ul class="list-disc ml-4 mt-1 space-y-1">
+                            <li><strong>Vector Search:</strong> Finds code based on its semantic meaning and concepts, not just keywords.</li>
+                            <li><strong>Full-Text Search:</strong> Excels at finding exact variable names, function calls, and specific terms.</li>
+                        </ul>
+                        By blending the results, you get the "best of both worlds"—semantically relevant code that also matches your specific keywords precisely.
                     </div>
-                    <button id="search-btn" class="px-4 py-2 font-semibold rounded-md mongodb-green-bg mongodb-green-bg-hover transition-all duration-200 active:scale-95" disabled>
-                        <span id="search-btn-text"><i class="fa-solid fa-search"></i></span>
-                        <svg id="search-spinner" class="animate-spin h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    </button>
-                </div>
+                </details>
                 <div id="search-results-container" class="mt-2 text-sm max-h-64 overflow-y-auto pr-2"></div>
                 <div id="search-pagination-container" class="mt-2 flex justify-between items-center text-xs"></div>
             </div>
@@ -227,24 +164,56 @@
             <div id="context-builder-section" class="hidden flex-1 flex flex-col min-h-0 relative">
                 <div class="flex justify-between items-center mb-2">
                     <h2 class="text-lg font-semibold">Build Context</h2>
-                    <span id="context-item-count" class="text-xs font-mono text-gray-400 bg-gray-900 px-2 py-1 rounded">0 items</span>
+                    <div class="flex items-center space-x-2">
+                         <button id="select-all-btn" class="text-xs text-gray-400 hover:text-white transition-colors"><i class="fa-solid fa-square-check mr-1"></i>Select All</button>
+                         <button id="clear-all-btn" class="text-xs text-gray-400 hover:text-white transition-colors"><i class="fa-regular fa-square mr-1"></i>Clear All</button>
+                    </div>
                 </div>
+
+                <div id="action-filters" class="mb-3">
+                    <label class="text-sm font-semibold text-gray-300 mb-2 block">Filter by Action</label>
+                    <div class="flex items-center gap-2">
+                        <button class="action-filter-btn flex-1 text-xs px-2 py-1 rounded-md transition-colors" data-filter-tag="data-storage">
+                            <i class="fa-solid fa-database mr-1"></i> Storage
+                        </button>
+                        <button class="action-filter-btn flex-1 text-xs px-2 py-1 rounded-md transition-colors" data-filter-tag="network-request">
+                            <i class="fa-solid fa-wifi mr-1"></i> Network
+                        </button>
+                        <button class="action-filter-btn flex-1 text-xs px-2 py-1 rounded-md transition-colors" data-filter-tag="file-io">
+                            <i class="fa-solid fa-file-alt mr-1"></i> File I/O
+                        </button>
+                    </div>
+                </div>
+
 
                 <div id="custom-context-section" class="mb-2"></div>
 
-                <p class="text-sm text-gray-400 mb-3">Expand files, select items, or <i class="fa-solid fa-wand-magic-sparkles text-purple-400"></i> get AI summaries.</p>
+                <p class="text-sm text-gray-400 mb-2">Expand files, select items, or <i class="fa-solid fa-wand-magic-sparkles text-purple-400"></i> get AI summaries.</p>
+
+                <div id="legend" class="text-xs text-gray-400 grid grid-cols-2 gap-x-3 gap-y-1 mb-3">
+                    <div class="flex items-center"><i class="fa-solid fa-cube text-type-class w-4 text-center mr-2"></i> Class</div>
+                    <div class="flex items-center"><i class="fa-solid fa-microchip text-type-function w-4 text-center mr-2"></i> Function</div>
+                    <div class="flex items-center"><i class="fa-solid fa-tag text-type-interface w-4 text-center mr-2"></i> Interface</div>
+                    <div class="flex items-center space-x-1">
+                        <span class="token-color-dot bg-blue-500"></span>
+                        <span class="token-color-dot bg-yellow-500"></span>
+                        <span class="token-color-dot bg-red-500"></span>
+                        <span class="ml-1">File Size</span>
+                    </div>
+                </div>
+
                 <div id="file-tree" class="flex-1 overflow-y-auto pr-2 space-y-1 mongodb-dark-bg p-2 rounded-lg border mongodb-border"></div>
 
                 <div class="mt-3 pt-3 border-t border-gray-700 space-y-2">
                     <div class="flex justify-between items-center text-xs">
-                        <span class="text-gray-400"><i class="fa-solid fa-code mr-1"></i>Code/Summary Context</span>
+                        <span id="context-item-count" class="text-gray-400">0 items selected</span>
                         <div id="code-context-meter" class="flex items-center space-x-2 font-mono">
                             <span class="text-right w-24" id="context-token-count">~0 tokens</span>
                             <div class="w-20 h-2 rounded-full bg-gray-700 overflow-hidden"><div id="context-meter-fill" class="h-2 rounded-full context-meter-gradient transition-all duration-300" style="width: 100%; transform: translateX(-100%)"></div></div>
                         </div>
                     </div>
                     <div class="flex justify-between items-center text-xs">
-                       <button id="manage-context-btn" class="text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled><i class="fa-solid fa-list-check mr-1"></i>Manage History Items</button>
+                       <button id="manage-context-btn" class="text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled title="Manage which messages are included in the conversation history"><i class="fa-solid fa-list-check mr-1"></i>Manage History Items</button>
                         <div id="chat-context-meter" class="flex items-center space-x-2 font-mono">
                             <span class="text-right w-24" id="chat-context-token-count">~0 tokens</span>
                             <div class="w-20 h-2 rounded-full bg-gray-700 overflow-hidden"><div id="chat-context-meter-fill" class="h-2 rounded-full chat-context-meter-gradient transition-all duration-300" style="width: 100%; transform: translateX(-100%)"></div></div>
@@ -278,11 +247,12 @@
                 <button type="button" class="preset-btn text-sm p-2 rounded-md mongodb-dark-bg hover:bg-gray-700 transition-colors" data-question="Provide a high-level summary of this project based on the selected context.">High-level summary</button>
                 <button type="button" class="preset-btn text-sm p-2 rounded-md mongodb-dark-bg hover:bg-gray-700 transition-colors" data-question="From the selected code, identify the main dependencies and libraries used.">Identify dependencies</button>
                 <button type="button" class="preset-btn text-sm p-2 rounded-md mongodb-dark-bg hover:bg-gray-700 transition-colors" data-question="Based on the selected files, explain the core logic and primary purpose of this application.">Explain the core logic</button>
+                <button type="button" class="preset-btn text-sm p-2 rounded-md mongodb-dark-bg hover:bg-gray-700 transition-colors" data-question="Based on the selected context, analyze the data layer. Identify the database models, connections, and primary interactions. Explain how the application persists and retrieves data.">💾 Analyze Data Layer</button>
             </div>
             <div class="mt-auto">
                 <form id="chat-form" class="flex items-center space-x-2">
                     <input type="text" id="message-input" placeholder="Select code snippets to begin..." class="flex-1 p-3 rounded-md bg-gray-800 border mongodb-border focus:outline-none focus:ring-2 focus:ring-green-500 transition-all duration-300" disabled>
-                    <button type="button" id="preview-context-btn" class="p-3 rounded-md mongodb-dark-bg border mongodb-border hover:bg-gray-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed" disabled title="Preview Context">
+                    <button type="button" id="preview-context-btn" class="p-3 rounded-md mongodb-dark-bg border mongodb-border hover:bg-gray-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed" disabled title="Preview the full prompt that will be sent to the AI">
                         <i class="fa-solid fa-eye"></i>
                     </button>
                     <button type="submit" id="send-btn" class="p-3 rounded-md mongodb-green-bg mongodb-green-bg-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed" disabled>
@@ -374,7 +344,7 @@ document.addEventListener('DOMContentLoaded', () => {
         searchBtn: document.getElementById('search-btn'), searchBtnText: document.getElementById('search-btn-text'),
         searchSpinner: document.getElementById('search-spinner'), searchResultsContainer: document.getElementById('search-results-container'),
         searchPaginationContainer: document.getElementById('search-pagination-container'),
-        clearSearchBtn: document.getElementById('clear-search-btn'), // NEW
+        clearSearchBtn: document.getElementById('clear-search-btn'),
         indexingProgressSection: document.getElementById('indexing-progress-section'),
         indexingProgressText: document.getElementById('indexing-progress-text'),
         indexingProgressBar: document.getElementById('indexing-progress-bar'),
@@ -393,6 +363,9 @@ document.addEventListener('DOMContentLoaded', () => {
         closePreviewContextModalBtn: document.getElementById('close-preview-context-modal-btn'),
         previewCodeContext: document.getElementById('preview-code-context'),
         previewHistoryContext: document.getElementById('preview-history-context'),
+        actionFilters: document.getElementById('action-filters'),
+        selectAllBtn: document.getElementById('select-all-btn'),
+        clearAllBtn: document.getElementById('clear-all-btn'),
     };
 
     // --- Constants ---
@@ -408,20 +381,27 @@ document.addEventListener('DOMContentLoaded', () => {
         "Pro-Tip: Branch conversations to explore different questions without losing your original chat history.",
         "Did you know? The context token meter helps you manage the size of the prompt sent to the AI.",
     ];
+    const ACTION_TAGS = {
+        'data-storage': { icon: 'fa-database', color: 'text-yellow-400', title: 'Data Storage' },
+        'network-request': { icon: 'fa-wifi', color: 'text-sky-400', title: 'Network Request' },
+        'file-io': { icon: 'fa-file-alt', color: 'text-rose-400', title: 'File I/O' }
+    };
 
     // --- State Management ---
-    let scannedFilesData = {}; // Now stores full content
+    let scannedFilesData = {};
     let messageStore = new Map();
     let conversations = {};
     let activeConversationId = null;
     let contextMessageIds = new Set();
-    let indexingStatusInterval = null;
+    let scanStatusInterval = null;
     let proTipInterval = null;
     let currentSessionId = null;
     let searchResultsStore = {};
     let customContextSnippets = [];
     let fullSearchResults = [];
     let searchResultsCurrentPage = 1;
+    let filesProcessed = false;
+    let activeFilters = new Set();
 
     function initNewConversation(id, name, messages = []) {
         conversations[id] = { id, name, messages };
@@ -434,19 +414,23 @@ document.addEventListener('DOMContentLoaded', () => {
         activeConversationId = 'main_thread';
         initNewConversation(activeConversationId, 'Main Thread');
         contextMessageIds.clear();
-        if (indexingStatusInterval) clearInterval(indexingStatusInterval);
+        if (scanStatusInterval) clearInterval(scanStatusInterval);
         if (proTipInterval) clearInterval(proTipInterval);
         currentSessionId = null;
         searchResultsStore = {};
         customContextSnippets = [];
         fullSearchResults = [];
         searchResultsCurrentPage = 1;
+        filesProcessed = false;
+        
+        activeFilters.clear();
+        ui.actionFilters.querySelectorAll('.action-filter-btn').forEach(btn => btn.classList.remove('active'));
 
         ui.contextBuilderSection.classList.add('hidden');
         ui.searchSection.classList.add('hidden');
         ui.indexingProgressSection.classList.add('hidden');
         ui.fileTree.innerHTML = '';
-        clearSearch(); // NEW: Clear search on new scan
+        clearSearch();
         ui.presetButtons.classList.add('hidden');
         ui.messageInput.disabled = true;
         ui.sendBtn.disabled = true;
@@ -547,7 +531,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderCustomContextSnippets() {
-        ui.customContextSection.innerHTML = ''; // Clear previous entries
+        ui.customContextSection.innerHTML = '';
         if (customContextSnippets.length === 0) return;
 
         const snippetsHTML = customContextSnippets.map(snippet => `
@@ -556,27 +540,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="text-xs font-semibold text-purple-400 truncate"><i class="fa-solid fa-pen-to-square mr-2"></i>${snippet.source}</div>
                 </div>
                 <div class="flex-shrink-0">
-                    <button class="edit-custom-snippet-btn text-gray-400 hover:text-white ml-2" data-id="${snippet.id}" title="Edit Snippet">
-                        <i class="fa-solid fa-pencil"></i>
-                    </button>
-                    <button class="remove-custom-snippet-btn text-gray-400 hover:text-red-500 ml-2" data-id="${snippet.id}" title="Remove Snippet">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
+                    <button class="edit-custom-snippet-btn text-gray-400 hover:text-white ml-2" data-id="${snippet.id}" title="Edit Snippet"><i class="fa-solid fa-pencil"></i></button>
+                    <button class="remove-custom-snippet-btn text-gray-400 hover:text-red-500 ml-2" data-id="${snippet.id}" title="Remove Snippet"><i class="fa-solid fa-trash-can"></i></button>
                 </div>
             </div>
         `).join('');
 
-        ui.customContextSection.innerHTML = `
-            <h3 class="text-sm font-semibold text-gray-300 mt-2 mb-1">Custom Snippets</h3>
-            ${snippetsHTML}
-        `;
+        ui.customContextSection.innerHTML = `<h3 class="text-sm font-semibold text-gray-300 mt-2 mb-1">Custom Snippets</h3>${snippetsHTML}`;
     }
 
     function updateContextItemCount() {
-        const fileTreeCount = ui.fileTree.querySelectorAll('input[type="checkbox"]:checked').length;
+        const fileTreeCount = ui.fileTree.querySelectorAll('input[data-type="checkbox"]:checked').length;
         const customCount = customContextSnippets.length;
         const totalCount = fileTreeCount + customCount;
-        ui.contextItemCount.textContent = `${totalCount} items`;
+        ui.contextItemCount.textContent = `${totalCount} items selected`;
     }
 
     function updateContextMeter() {
@@ -586,7 +563,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (selectedCode[path].includes('__all__')) {
                 charCount += scannedFilesData[path]?.char_count || 0;
             } else {
-                charCount += selectedCode[path].length * 1000; // Rough estimate for snippets
+                charCount += selectedCode[path].length * 1000;
             }
         }
         const selectedSummaries = getSelectedSummaryItems();
@@ -617,7 +594,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateFileVisuals() {
-        ui.fileTree.querySelectorAll('details').forEach(detail => {
+        ui.fileTree.querySelectorAll('details[data-type="file-item"]').forEach(detail => {
             const indicator = detail.querySelector('.context-indicator-bar');
             if (!indicator) return;
             const fileCheckbox = detail.querySelector('input[data-type="file-code"]');
@@ -644,7 +621,9 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.manageContextBtn.disabled = !hasMessages;
         ui.convoDropdownBtn.disabled = Object.keys(conversations).length === 0;
 
-        if (hasContext) {
+        const isIndexing = scanStatusInterval !== null;
+
+        if (hasContext && !isIndexing) {
             ui.messageInput.disabled = false;
             ui.sendBtn.disabled = false;
             ui.previewContextBtn.disabled = false;
@@ -657,7 +636,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.messageInput.disabled = true;
             ui.sendBtn.disabled = true;
             ui.previewContextBtn.disabled = true;
-            ui.messageInput.placeholder = "Select code snippets or summaries to begin...";
+            ui.messageInput.placeholder = isIndexing ? "Please wait for indexing to complete..." : "Select code snippets or summaries to begin...";
             ui.presetButtons.classList.add('hidden');
             ui.presetButtons.classList.remove('flex', 'animate-fadeInUp');
         }
@@ -669,7 +648,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const path = ui.pathInput.value.trim() || '.';
         setScanningState(true);
         resetForNewScan();
-        ui.statusText.textContent = 'Scanning and analyzing...';
+        ui.statusText.textContent = 'Initializing scan...';
+        ui.statusDot.classList.remove('bg-red-500', 'bg-green-500');
+        ui.statusDot.classList.add('bg-yellow-500', 'animate-pulse');
+
         try {
             const response = await fetch('/scan', {
                 method: 'POST',
@@ -677,52 +659,108 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ path }),
             });
             const result = await response.json();
-            if (!response.ok) throw new Error(result.error || 'Unknown error');
+            if (!response.ok) throw new Error(result.error || 'Failed to start scan.');
 
             currentSessionId = result.sessionId;
-            ui.statusText.textContent = `Scanned: ${result.displayName}`;
-            ui.statusDot.classList.remove('bg-yellow-500', 'animate-pulse');
-            ui.statusDot.classList.add('bg-green-500');
-
-            scannedFilesData = result.files.reduce((acc, file) => {
-                acc[file.path] = { char_count: file.char_count, content: file.content };
-                return acc;
-            }, {});
-
-            result.files.forEach(file => createFileTreeItem(file, false));
-
-            ui.scanSection.style.display = 'none';
-            ui.newScanBtn.style.display = 'block';
-
-            ui.searchSection.classList.remove('hidden');
-            ui.searchSection.classList.add('animate-fadeInUp');
-            ui.contextBuilderSection.classList.remove('hidden');
-            ui.contextBuilderSection.classList.add('animate-fadeInUp');
-
-            startIndexingStatusPoller();
-
-            const messageContent = `Analysis complete for \`${result.displayName}\`. The file tree is now available on the left. **Please select files or snippets to build your context** and start asking questions.
-            <br><br>I am now indexing all functions and classes in the background. This will enable search and other advanced features shortly.`;
-
-            createMessage('assistant', messageContent);
-            renderActiveConversation();
-            updateChatUI();
+            startScanStatusPoller();
         } catch (error) {
             ui.statusText.textContent = 'Scan failed.';
+            ui.statusDot.classList.remove('bg-yellow-500', 'animate-pulse');
             ui.statusDot.classList.add('bg-red-500');
             createMessage('assistant', `**Error:** ${error.message}`);
             renderActiveConversation();
-        } finally {
             setScanningState(false);
         }
     });
 
-    function createFileTreeItem(file, isRecommended = false) {
+    // --- NEW File Tree Rendering Logic ---
+
+    function buildTreeFromPaths(files) {
+        const tree = {};
+        files.forEach(file => {
+            const parts = file.path.split('/');
+            let currentLevel = tree;
+            parts.forEach((part, index) => {
+                if (!currentLevel[part]) {
+                    if (index === parts.length - 1) { // It's a file
+                        currentLevel[part] = { ...file, type: 'file' };
+                    } else { // It's a folder
+                        currentLevel[part] = { type: 'folder', children: {} };
+                    }
+                }
+                currentLevel = currentLevel[part].children;
+            });
+        });
+        return tree;
+    }
+
+    function renderFileTree(tree, container) {
+        container.innerHTML = '';
+        Object.keys(tree).sort((a, b) => {
+            const nodeA = tree[a];
+            const nodeB = tree[b];
+            if (nodeA.type === 'folder' && nodeB.type !== 'folder') return -1;
+            if (nodeA.type !== 'folder' && nodeB.type === 'folder') return 1;
+            return a.localeCompare(b);
+        }).forEach(name => {
+            const node = tree[name];
+            if (node.type === 'folder') {
+                renderFolderNode(name, node, container);
+            } else {
+                const fileElement = createFileTreeItem(node);
+                container.appendChild(fileElement);
+            }
+        });
+    }
+
+    function renderFolderNode(name, node, container) {
         const details = document.createElement('details');
-        details.className = 'bg-gray-800/50 rounded-md';
+        details.className = 'folder-item';
+        details.dataset.type = 'folder-item';
+        details.dataset.path = name; // Simple path for top-level folders
+
+        const summary = document.createElement('summary');
+        summary.className = 'folder-summary';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'h-4 w-4 rounded text-green-500 bg-gray-700 border-gray-600 focus:ring-green-600 mr-2';
+        checkbox.dataset.type = 'folder-code';
+
+        const icon = document.createElement('i');
+        icon.className = `fa-solid fa-chevron-right w-4 text-center transition-transform details-arrow mr-2`;
+        
+        const folderIcon = document.createElement('i');
+        folderIcon.className = `fa-regular fa-folder text-yellow-500 mr-2`;
+        details.addEventListener('toggle', () => {
+             folderIcon.classList.toggle('fa-folder');
+             folderIcon.classList.toggle('fa-folder-open');
+        });
+
+        const label = document.createElement('span');
+        label.textContent = name;
+        label.className = 'text-sm';
+        
+        summary.append(checkbox, icon, folderIcon, label);
+        
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'folder-content';
+        
+        details.append(summary, contentDiv);
+        container.appendChild(details);
+
+        renderFileTree(node.children, contentDiv);
+    }
+    
+
+    function createFileTreeItem(file) {
+        const details = document.createElement('details');
+        details.className = 'bg-gray-800/50 rounded-md transition-all duration-200';
         details.dataset.path = file.path;
         details.dataset.charCount = file.char_count;
         details.dataset.loaded = 'false';
+        details.dataset.tags = file.tags.join(',');
+        details.dataset.type = 'file-item';
 
         const summary = document.createElement('summary');
         summary.className = 'flex items-center justify-between p-2 cursor-pointer hover:bg-gray-700/50 rounded-md';
@@ -734,21 +772,34 @@ document.addEventListener('DOMContentLoaded', () => {
         fileCheckbox.type = 'checkbox';
         fileCheckbox.className = 'h-4 w-4 rounded text-green-500 bg-gray-700 border-gray-600 focus:ring-green-600 flex-shrink-0 file-checkbox';
         fileCheckbox.dataset.type = 'file-code';
-        fileCheckbox.checked = isRecommended;
 
         const icon = document.createElement('i');
-        icon.className = `fa-solid fa-chevron-right w-6 text-center transition-transform flex-shrink-0`;
-        details.addEventListener('toggle', () => icon.classList.toggle('fa-rotate-90'));
-
-        const ICONS = { file: 'fa-regular fa-file-code', class: 'fa-solid fa-cube text-type-class', function: 'fa-solid fa-microchip text-type-function', type: 'fa-solid fa-tag text-type-type', module: 'fa-solid fa-cubes text-type-module' };
+        icon.className = `fa-solid fa-chevron-right w-6 text-center transition-transform flex-shrink-0 details-arrow`;
+        
+        const ICONS = {
+            file: 'fa-regular fa-file-code',
+            class: 'fa-solid fa-cube text-type-class',
+            function: 'fa-solid fa-microchip text-type-function',
+            interface: 'fa-solid fa-tag text-type-interface',
+        };
         const fileIcon = document.createElement('i');
-        fileIcon.className = `${ICONS.file} mx-2 text-gray-400 flex-shrink-0`;
+        fileIcon.className = `${ICONS.file} mx-2 text-gray-400 flex-shrink-0 file-icon`;
 
         const labelWrapper = document.createElement('div');
         labelWrapper.className = 'file-label-wrapper';
+        
+        const tagIcons = file.tags.map(tag => {
+            const tagInfo = ACTION_TAGS[tag];
+            if (!tagInfo) return '';
+            return `<i class="fa-solid ${tagInfo.icon} ${tagInfo.color} action-tag-icon" title="${tagInfo.title}"></i>`;
+        }).join('');
+
         const label = document.createElement('span');
-        label.textContent = file.path;
+        const pathParts = file.path.split('/');
+        label.textContent = pathParts[pathParts.length - 1]; // Show only filename
         label.className = 'text-sm file-label';
+        
+        labelWrapper.innerHTML = tagIcons;
         labelWrapper.appendChild(label);
 
         const lockIndicator = document.createElement('span');
@@ -769,9 +820,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const tokenDot = document.createElement('span');
         tokenDot.className = 'token-color-dot';
         const charCount = file.char_count;
-        if (charCount > CHAR_COUNT_LARGE) tokenDot.classList.add('bg-red-500');
-        else if (charCount > CHAR_COUNT_MEDIUM) tokenDot.classList.add('bg-yellow-500');
-        else tokenDot.classList.add('bg-blue-500');
+        if (charCount > CHAR_COUNT_LARGE) {
+            tokenDot.classList.add('bg-red-500'); tokenDot.title = 'Large file (>32k chars)';
+        } else if (charCount > CHAR_COUNT_MEDIUM) {
+            tokenDot.classList.add('bg-yellow-500'); tokenDot.title = 'Medium file (>8k chars)';
+        } else {
+            tokenDot.classList.add('bg-blue-500'); tokenDot.title = 'Small file (<8k chars)';
+        }
 
         const tokenText = document.createElement('span');
         tokenText.textContent = `~${Math.floor(charCount / 4).toLocaleString()}tk`;
@@ -788,8 +843,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const contentDiv = document.createElement('div');
         contentDiv.className = 'pl-8 pr-2 pb-2';
         details.appendChild(contentDiv);
-        ui.fileTree.appendChild(details);
-
+        
         details.addEventListener('toggle', async (e) => {
             if (details.open && details.dataset.loaded === 'false') {
                 contentDiv.innerHTML = `<div class="text-xs text-gray-500">Loading structure...</div>`;
@@ -797,16 +851,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     const response = await fetch('/structure', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({path: file.path})
+                        body: JSON.stringify({path: file.path, sessionId: currentSessionId})
                     });
                     const structure = await response.json();
                     if (!response.ok) throw new Error(structure.error);
                     details.dataset.loaded = 'true';
                     contentDiv.innerHTML = '';
+                    
                     if (structure.length > 0) {
                         structure.forEach(item => {
                             const itemDiv = document.createElement('div');
-                            itemDiv.className = 'flex items-center mt-1';
+                            itemDiv.className = `flex items-center mt-1 p-1 rounded`;
 
                             const itemCheckbox = document.createElement('input');
                             itemCheckbox.type = 'checkbox';
@@ -824,16 +879,25 @@ document.addEventListener('DOMContentLoaded', () => {
                             summarizeItemBtn.dataset.name = item.name;
 
                             const itemIcon = document.createElement('i');
-                            itemIcon.className = `${ICONS[item.type] || 'fa-solid fa-code'} w-6 text-center`;
+                            const iconClass = ICONS[item.type] || 'fa-solid fa-code';
+                            itemIcon.className = `${iconClass} w-6 text-center`;
+                            itemIcon.title = item.type.charAt(0).toUpperCase() + item.type.slice(1);
 
                             const itemLabel = document.createElement('span');
                             itemLabel.textContent = item.name;
-                            itemLabel.className = `text-sm text-type-${item.type}`;
+                            itemLabel.className = `text-sm text-type-${item.type} mr-2`;
+
+                            const itemTagIcons = (item.tags || []).map(tag => {
+                                const tagInfo = ACTION_TAGS[tag];
+                                if (!tagInfo) return '';
+                                return `<i class="fa-solid ${tagInfo.icon} ${tagInfo.color} action-tag-icon" title="${tagInfo.title}"></i>`;
+                            }).join('<span class="mx-1"></span>');
 
                             const summaryTarget = document.createElement('div');
                             summaryTarget.className = `summary-target-item ml-12`;
 
                             itemDiv.append(itemCheckbox, summarizeItemBtn, itemIcon, itemLabel);
+                            itemDiv.innerHTML += itemTagIcons;
                             contentDiv.append(itemDiv, summaryTarget);
                         });
                     } else {
@@ -844,11 +908,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
+        return details;
     }
+
 
     function getSelectedCodeItems() {
         const selected = {};
-        ui.fileTree.querySelectorAll('details').forEach(detail => {
+        ui.fileTree.querySelectorAll('details[data-type="file-item"]').forEach(detail => {
             const filePath = detail.dataset.path;
             const fileCheckbox = detail.querySelector('input[data-type="file-code"]');
             const itemCheckboxes = detail.querySelectorAll('input[data-type="item-code"]:checked');
@@ -911,8 +977,8 @@ document.addEventListener('DOMContentLoaded', () => {
             summaryContainer.innerHTML = `<div class="text-xs text-red-400 p-2">${error.message}</div>`;
         } finally {
             btn.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i>`;
-            if (!name) {
-                btn.disabled = false;
+             if (!summaryContainer.querySelector('.summary-container')) {
+                 btn.disabled = false;
             }
         }
     }
@@ -922,9 +988,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const selectedCode = getSelectedCodeItems();
         const selectedSummaries = getSelectedSummaryItems();
-        const customSnippets = customContextSnippets;
+        const customSnippetsForPayload = customContextSnippets.map(({ id, ...rest }) => rest);
 
-        if (Object.keys(selectedCode).length === 0 && selectedSummaries.length === 0 && customSnippets.length === 0) {
+        if (Object.keys(selectedCode).length === 0 && selectedSummaries.length === 0 && customContextSnippets.length === 0) {
             const errId = createMessage('assistant', `**Error:** Please select files, code snippets, or summaries before asking a question.`);
             renderMessage(errId);
             return;
@@ -948,7 +1014,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const historyForPrompt = [];
         for (const messageId of contextMessageIds) {
             const state = messageStore.get(messageId);
-            if (state) historyForPrompt.push({ role: state.role, content: state.content });
+            if (state && messageId !== userMsgId) historyForPrompt.push({ role: state.role, content: state.content });
         }
 
         try {
@@ -956,10 +1022,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    sessionId: currentSessionId,
                     question: messageText,
                     selected_items: selectedCode,
                     selected_summaries: selectedSummaries,
-                    custom_snippets: customSnippets,
+                    custom_snippets: customSnippetsForPayload,
                     history: historyForPrompt
                 }),
             });
@@ -973,11 +1040,8 @@ document.addEventListener('DOMContentLoaded', () => {
             thinkingWrapper.remove();
             renderMessage(errorMsgId);
         } finally {
-            ui.sendBtn.disabled = false;
-            ui.previewContextBtn.disabled = false;
-            ui.messageInput.disabled = false;
-            ui.chatWindow.scrollTop = ui.chatWindow.scrollHeight;
             updateChatUI();
+            ui.chatWindow.scrollTop = ui.chatWindow.scrollHeight;
         }
     }
 
@@ -1077,7 +1141,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // A utility function to correctly escape backticks for safe insertion into template literals.
     function escapeForTemplate(str) {
         if (typeof str !== 'string') return '';
         return str.replace(/`/g, '\\`');
@@ -1090,7 +1153,6 @@ document.addEventListener('DOMContentLoaded', () => {
         let codeContextParts = [];
         let historyContext = "";
 
-        // Summaries
         const selectedSummaries = getSelectedSummaryItems();
         if (selectedSummaries.length > 0) {
             codeContextParts.push("## CONTEXT FROM AI-GENERATED SUMMARIES");
@@ -1101,7 +1163,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // Custom Snippets
         if (customContextSnippets.length > 0) {
             customContextSnippets.forEach(s => {
                 const escapedContent = escapeForTemplate(s.content);
@@ -1109,10 +1170,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // Code selections (files and snippets)
         const selectedCode = getSelectedCodeItems();
         const snippetPromises = [];
-
         for (const path in selectedCode) {
             if (selectedCode[path].includes('__all__')) {
                 const content = scannedFilesData[path]?.content || "Error: Content not found.";
@@ -1123,7 +1182,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const promise = fetch('/extract_snippet', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ path, name })
+                        body: JSON.stringify({ path, name, sessionId: currentSessionId })
                     })
                     .then(res => res.json())
                     .then(data => {
@@ -1137,11 +1196,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
         }
-
         const resolvedSnippets = await Promise.all(snippetPromises);
         codeContextParts.push(...resolvedSnippets);
 
-        // History
         for (const messageId of contextMessageIds) {
             const message = messageStore.get(messageId);
             if (message) {
@@ -1154,7 +1211,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (codeContextParts.length > 0) {
             finalCodeContext = "## CODEBASE CONTEXT\n\n" + codeContextParts.join('\n\n');
         }
-
         ui.previewCodeContext.textContent = finalCodeContext;
         ui.previewHistoryContext.textContent = historyContext.trim() || "No history items selected.";
     }
@@ -1162,7 +1218,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Search & Context Conflict ---
     async function handleSearch() {
         const query = ui.searchInput.value.trim();
-        updateClearSearchBtnVisibility(); // NEW
+        updateClearSearchBtnVisibility();
         if (!query) return;
 
         ui.searchBtn.disabled = true;
@@ -1183,7 +1239,6 @@ document.addEventListener('DOMContentLoaded', () => {
             fullSearchResults = results;
             searchResultsCurrentPage = 1;
             displaySearchResultsPage();
-
         } catch (error) {
             ui.searchResultsContainer.innerHTML = `<div class="text-red-400">Error: ${error.message}</div>`;
         } finally {
@@ -1197,7 +1252,7 @@ document.addEventListener('DOMContentLoaded', () => {
         searchResultsStore = {};
         ui.searchResultsContainer.innerHTML = '';
         ui.searchPaginationContainer.innerHTML = '';
-        updateClearSearchBtnVisibility(); // NEW
+        updateClearSearchBtnVisibility();
 
         if (fullSearchResults.length === 0) {
             ui.searchResultsContainer.innerHTML = `<div class="text-gray-400 italic">No results found.</div>`;
@@ -1216,19 +1271,25 @@ document.addEventListener('DOMContentLoaded', () => {
             const itemName = res.item_name === '__file__' ? '<i>(File)</i>' : res.item_name;
             const score = (res.scoreDetails?.value || 0).toFixed(4);
             const descriptionHTML = res.summary ? `<p class="text-xs text-gray-400 mt-1 italic">"${res.summary}"</p>` : `<p class="text-xs text-gray-400 mt-1 italic">"${res.description}"</p>`;
+            
+            const tagIcons = (res.tags || []).map(tag => {
+                const tagInfo = ACTION_TAGS[tag];
+                if (!tagInfo) return '';
+                return `<i class="fa-solid ${tagInfo.icon} ${tagInfo.color} mr-1" title="${tagInfo.title}"></i>`;
+            }).join('');
+
 
             return `
                 <div class="mongodb-dark-bg p-3 my-2 rounded-md border mongodb-border">
                     <div class="flex justify-between items-start">
                         <div class="flex-1 min-w-0">
                            <div class="font-semibold text-green-400 truncate">${res.file_path}</div>
-                           <div class="text-xs text-gray-300 ml-2">&hookrightarrow; ${itemName}</div>
+                           <div class="text-xs text-gray-300 ml-2">&hookrightarrow; ${tagIcons}${itemName}</div>
                            ${descriptionHTML}
                         </div>
                         <div class="flex flex-col items-end ml-2">
                              <span class="text-xs font-mono text-gray-500 mb-2">${score}</span>
-                             <button class="review-context-btn text-xs mongodb-green-bg mongodb-green-bg-hover px-2 py-1 rounded"
-                                     data-result-id="${resultId}">
+                             <button class="review-context-btn text-xs mongodb-green-bg mongodb-green-bg-hover px-2 py-1 rounded" data-result-id="${resultId}">
                                  <i class="fa-solid fa-pen-to-square mr-1"></i> Review & Add
                              </button>
                         </div>
@@ -1248,7 +1309,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // NEW: Function to clear search state and UI
     function clearSearch() {
         ui.searchInput.value = '';
         ui.searchResultsContainer.innerHTML = '';
@@ -1259,7 +1319,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updateClearSearchBtnVisibility();
     }
 
-    // NEW: Function to manage visibility of the clear button
     function updateClearSearchBtnVisibility() {
         const hasText = ui.searchInput.value.trim().length > 0;
         const hasResults = fullSearchResults.length > 0;
@@ -1269,7 +1328,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateFileTreeInteractivity() {
         const snippetPaths = new Set(customContextSnippets.map(s => s.path));
 
-        ui.fileTree.querySelectorAll('details').forEach(detail => {
+        ui.fileTree.querySelectorAll('details[data-type="file-item"]').forEach(detail => {
             const path = detail.dataset.path;
             const fileCheckbox = detail.querySelector('input[data-type="file-code"]');
             const lockIndicator = detail.querySelector('.lock-indicator');
@@ -1289,23 +1348,102 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Indexing Status Polling & UX ---
+    // --- Scan & Indexing Status Polling & UX ---
+    function startScanStatusPoller() {
+        if (scanStatusInterval) clearInterval(scanStatusInterval);
+        scanStatusInterval = setInterval(pollScanStatus, 2000);
+        pollScanStatus();
+    }
+
+    async function pollScanStatus() {
+        if (!currentSessionId) return;
+        try {
+            const response = await fetch(`/scan_status/${currentSessionId}`);
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Failed to get status');
+
+            ui.statusText.textContent = data.displayName ? `${data.displayName}: ${data.message}` : data.message;
+            if (data.status === 'error') {
+                throw new Error(data.error);
+            }
+
+            if (data.files && !filesProcessed) {
+                filesProcessed = true;
+                setScanningState(false);
+                ui.statusDot.classList.remove('bg-yellow-500', 'animate-pulse');
+                ui.statusDot.classList.add('bg-green-500');
+
+                scannedFilesData = data.files.reduce((acc, file) => {
+                    acc[file.path] = { char_count: file.char_count, content: file.content, tags: file.tags };
+                    return acc;
+                }, {});
+
+                // NEW: Render hierarchical tree
+                const fileTree = buildTreeFromPaths(data.files);
+                renderFileTree(fileTree, ui.fileTree);
+                applyFileTreeFilter(); 
+
+                ui.scanSection.style.display = 'none';
+                ui.newScanBtn.style.display = 'block';
+                ui.searchSection.classList.remove('hidden', 'animate-fadeInUp');
+                ui.contextBuilderSection.classList.remove('hidden', 'animate-fadeInUp');
+                
+                const messageContent = `Analysis complete for \`${data.displayName}\`. The file tree is now available. I am now indexing all functions and classes in the background to enable search.`;
+                createMessage('assistant', messageContent);
+                renderActiveConversation();
+                updateChatUI();
+            }
+
+            const indexingStatus = data.indexingStatus || {};
+            if (indexingStatus.running) {
+                if(ui.indexingProgressSection.classList.contains('hidden')) {
+                    enterIndexingState();
+                }
+                const percentage = indexingStatus.total > 0 ? (indexingStatus.progress / indexingStatus.total) * 100 : 0;
+                ui.indexingProgressText.textContent = `Processing Snippets: ${indexingStatus.progress} / ${indexingStatus.total}`;
+                ui.indexingProgressBar.style.width = `${percentage}%`;
+                
+                if (percentage < 33) ui.indexingStageText.textContent = "Phase 1/3: Generating summaries...";
+                else if (percentage < 66) ui.indexingStageText.textContent = "Phase 2/3: Creating embeddings...";
+                else ui.indexingStageText.textContent = "Phase 3/3: Writing to search index...";
+            }
+
+            if (data.status === 'complete' || (data.scan_complete && !indexingStatus.running)) {
+                clearInterval(scanStatusInterval);
+                scanStatusInterval = null;
+                if (ui.indexingProgressSection.classList.contains('flex')) {
+                    ui.indexingProgressBar.style.width = `100%`;
+                    ui.indexingStageText.textContent = "All Systems Go!";
+                    ui.indexingProgressText.textContent = "Indexing Complete!";
+                    if(indexingStatus.total > 0) {
+                        createMessage('assistant', `✅ Background indexing of ${indexingStatus.total} snippets is complete. Search is now fully available.`);
+                        renderActiveConversation();
+                    }
+                    setTimeout(exitIndexingState, 1500);
+                }
+            }
+        } catch (error) {
+            console.error("Error polling scan status:", error);
+            ui.statusText.textContent = `Error: ${error.message}`;
+            ui.statusDot.classList.remove('bg-yellow-500', 'animate-pulse');
+            ui.statusDot.classList.add('bg-red-500');
+            setScanningState(false);
+            clearInterval(scanStatusInterval);
+            scanStatusInterval = null;
+            exitIndexingState();
+        }
+    }
+
     function enterIndexingState() {
         ui.indexingProgressSection.classList.remove('hidden');
         ui.indexingProgressSection.style.opacity = '1';
-        ui.indexingProgressSection.classList.add('flex');
-        ui.indexingProgressSection.classList.add('animate-fadeInUp');
-
+        ui.indexingProgressSection.classList.add('flex', 'animate-fadeInUp');
 
         ui.searchInput.disabled = true;
         ui.searchBtn.disabled = true;
         ui.searchInput.placeholder = "Indexing in progress...";
-
-        document.querySelectorAll('.snippet-summarize-btn').forEach(btn => btn.disabled = true);
-        ui.messageInput.disabled = true;
-        ui.sendBtn.disabled = true;
-        ui.previewContextBtn.disabled = true;
-        ui.messageInput.placeholder = "Please wait for indexing to complete...";
+        document.querySelectorAll('.summarize-btn').forEach(btn => btn.disabled = true);
+        updateChatUI();
 
         let tipIndex = 0;
         ui.indexingProTip.textContent = PRO_TIPS[tipIndex];
@@ -1326,7 +1464,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => {
             ui.indexingProgressSection.classList.add('hidden');
             ui.indexingProgressSection.classList.remove('flex');
-        }, 300); // match transition duration
+        }, 300);
 
         ui.searchInput.disabled = false;
         ui.searchBtn.disabled = false;
@@ -1334,62 +1472,8 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.searchInput.classList.add('glow-on-ready');
         setTimeout(() => ui.searchInput.classList.remove('glow-on-ready'), 3000);
 
-
-        document.querySelectorAll('.snippet-summarize-btn').forEach(btn => btn.disabled = false);
-        updateChatUI(); // Re-evaluates chat input state
-    }
-
-
-    function startIndexingStatusPoller() {
-        if (indexingStatusInterval) clearInterval(indexingStatusInterval);
-        enterIndexingState();
-        indexingStatusInterval = setInterval(fetchIndexingStatus, 2000);
-        fetchIndexingStatus();
-    }
-
-    async function fetchIndexingStatus() {
-        try {
-            const response = await fetch('/status');
-            const data = await response.json();
-            if (!data) return;
-
-            if (data.running) {
-                const percentage = data.total > 0 ? (data.progress / data.total) * 100 : 0;
-                ui.indexingProgressText.textContent = `Processing Snippets: ${data.progress} / ${data.total}`;
-                ui.indexingProgressBar.style.width = `${percentage}%`;
-
-                if (percentage < 33) {
-                     ui.indexingStageText.textContent = "Phase 1/3: Generating summaries...";
-                } else if (percentage < 66) {
-                     ui.indexingStageText.textContent = "Phase 2/3: Creating embeddings...";
-                } else {
-                     ui.indexingStageText.textContent = "Phase 3/3: Writing to search index...";
-                }
-
-            } else {
-                ui.indexingProgressBar.style.width = `100%`;
-                clearInterval(indexingStatusInterval);
-                indexingStatusInterval = null;
-
-                if(data.total > 0 && data.progress >= data.total){
-                  ui.indexingStageText.textContent = "All Systems Go!";
-                  ui.indexingProgressText.textContent = "Indexing Complete!";
-                  createMessage('assistant', `✅ Background indexing of ${data.total} snippets is complete. Search is now fully available.`);
-                  renderActiveConversation();
-                } else if (data.total === 0) {
-                   ui.indexingStageText.textContent = "Scan Complete";
-                   ui.indexingProgressText.textContent = "No snippets found to index.";
-                }
-
-                setTimeout(exitIndexingState, 1500);
-            }
-        } catch (error) {
-            console.error("Error fetching indexing status:", error);
-            ui.indexingProgressText.textContent = "Error fetching status.";
-            clearInterval(indexingStatusInterval);
-            indexingStatusInterval = null;
-            setTimeout(exitIndexingState, 1000);
-        }
+        document.querySelectorAll('.summarize-btn').forEach(btn => btn.disabled = false);
+        updateChatUI();
     }
 
     // --- Event Listeners ---
@@ -1405,8 +1489,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     ui.searchBtn.addEventListener('click', handleSearch);
     ui.searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSearch(); });
-    ui.searchInput.addEventListener('input', updateClearSearchBtnVisibility); // NEW
-    ui.clearSearchBtn.addEventListener('click', clearSearch); // NEW
+    ui.searchInput.addEventListener('input', updateClearSearchBtnVisibility);
+    ui.clearSearchBtn.addEventListener('click', clearSearch);
 
     ui.searchPaginationContainer.addEventListener('click', e => {
         if (e.target.id === 'search-prev-btn') {
@@ -1429,12 +1513,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const fileDetailsElement = document.querySelector(`details[data-path="${resultData.file_path}"]`);
         const isFileLocked = fileDetailsElement.querySelector('input[data-type="file-code"]')?.disabled;
 
-        // Show the warning only if the file isn't already locked by another snippet.
-        if (!isFileLocked) {
-            ui.reviewModalWarning.classList.remove('hidden');
-        } else {
-            ui.reviewModalWarning.classList.add('hidden');
-        }
+        ui.reviewModalWarning.classList.toggle('hidden', isFileLocked);
 
         const isFileSelected = fileDetailsElement.querySelector('input[data-type="file-code"]')?.checked;
     
@@ -1468,43 +1547,32 @@ document.addEventListener('DOMContentLoaded', () => {
         if (mode === 'edit') {
             const snippetId = btn.dataset.editId;
             const snippet = customContextSnippets.find(s => s.id === snippetId);
-            if (snippet) {
-                snippet.content = content;
-            }
+            if (snippet) snippet.content = content;
             ui.reviewContextModal.classList.add('hidden');
             updateChatUI();
-        } else { // mode === 'add'
+        } else {
             const newSnippetId = `custom-${Date.now()}`;
             const source = btn.dataset.source;
             const path = btn.dataset.path;
             
-            customContextSnippets.push({
-                id: newSnippetId,
-                path: path,
-                source: source,
-                content: content
-            });
+            customContextSnippets.push({ id: newSnippetId, path: path, source: source, content: content });
 
-            // --- NEW Intuitive Feedback UX ---
             btn.innerHTML = `<i class="fa-solid fa-check mr-2"></i>Added`;
             btn.disabled = true;
 
             setTimeout(() => {
                 ui.reviewContextModal.classList.add('hidden');
-                btn.innerHTML = originalButtonText; // Reset for next time
+                btn.innerHTML = originalButtonText;
                 btn.disabled = false;
-                
-                updateChatUI(); // This re-renders the list
+                updateChatUI();
 
                 const newSnippetElement = document.querySelector(`[data-snippet-id="${newSnippetId}"]`);
                 if (newSnippetElement) {
                     newSnippetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     newSnippetElement.classList.add('flash-on-add');
-                    setTimeout(() => {
-                        newSnippetElement.classList.remove('flash-on-add');
-                    }, 1500); // Must match animation duration
+                    setTimeout(() => newSnippetElement.classList.remove('flash-on-add'), 1500);
                 }
-            }, 750); // Short delay to show the "Added" state in the modal
+            }, 750);
         }
     });
 
@@ -1528,6 +1596,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.addReviewedSnippetBtn.dataset.editId = snippet.id;
             ui.addReviewedSnippetBtn.disabled = false;
             ui.addReviewedSnippetBtn.title = '';
+            ui.reviewModalWarning.classList.add('hidden');
             ui.reviewContextModal.classList.remove('hidden');
         }
     });
@@ -1562,16 +1631,6 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.chatWindow.addEventListener('click', (e) => {
         const branchBtn = e.target.closest('.branch-btn');
         if (branchBtn) handleBranch(branchBtn.dataset.messageId);
-
-        const fileLink = e.target.closest('.recommended-file-link');
-        if (fileLink) {
-            const path = fileLink.dataset.path;
-            const detailsElement = document.querySelector(`details[data-path="${path}"]`);
-            if (detailsElement) {
-                detailsElement.open = true;
-                detailsElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        }
     });
 
     ui.fileTree.addEventListener('click', (e) => {
@@ -1582,22 +1641,64 @@ document.addEventListener('DOMContentLoaded', () => {
             handleFetchSummary(summaryBtn.dataset.path, summaryBtn.dataset.name);
         }
     });
+    
+    // --- NEW: Hierarchical Checkbox Logic ---
+    function updateParentCheckboxes(element) {
+        let parentFolder = element.closest('.folder-item');
+        while(parentFolder) {
+            const folderCheckbox = parentFolder.querySelector(':scope > summary > input[data-type="folder-code"]');
+            const childCheckboxes = parentFolder.querySelectorAll(':scope > .folder-content > .folder-item > summary > input[data-type="folder-code"], :scope > .folder-content > details[data-type="file-item"] > summary > input[data-type="file-code"]');
+            
+            const total = childCheckboxes.length;
+            let checkedCount = 0;
+            childCheckboxes.forEach(cb => {
+                if(cb.checked) checkedCount++;
+            });
+
+            if (total === 0) {
+                 folderCheckbox.checked = false;
+                 folderCheckbox.indeterminate = false;
+            } else if (checkedCount === 0) {
+                folderCheckbox.checked = false;
+                folderCheckbox.indeterminate = false;
+            } else if (checkedCount === total) {
+                folderCheckbox.checked = true;
+                folderCheckbox.indeterminate = false;
+            } else {
+                folderCheckbox.checked = false;
+                folderCheckbox.indeterminate = true;
+            }
+            parentFolder = parentFolder.parentElement.closest('.folder-item');
+        }
+    }
 
     ui.fileTree.addEventListener('change', (e) => {
         const checkbox = e.target;
         if (checkbox.type !== 'checkbox') return;
+        
+        const isFolder = checkbox.dataset.type === 'folder-code';
+        const isFile = checkbox.dataset.type === 'file-code';
+        const isItem = checkbox.dataset.type === 'item-code';
 
-        const detail = checkbox.closest('details');
-
-        if (checkbox.dataset.type === 'file-code') {
-            detail.querySelectorAll('input[data-type="item-code"]').forEach(cb => {
-                cb.checked = checkbox.checked;
+        if (isFolder) {
+            const folderContent = checkbox.closest('details').querySelector('.folder-content');
+            folderContent.querySelectorAll('input[type="checkbox"]').forEach(childCb => {
+                childCb.checked = checkbox.checked;
+                childCb.indeterminate = false;
             });
         }
-        else if (checkbox.dataset.type === 'item-code') {
-            const fileCheckbox = detail.querySelector('input[data-type="file-code"]');
-            const allItems = detail.querySelectorAll('input[data-type="item-code"]');
-            const checkedItems = detail.querySelectorAll('input[data-type="item-code"]:checked');
+        
+        if (isFile) {
+            const detail = checkbox.closest('details');
+            detail.querySelectorAll('input[data-type="item-code"]').forEach(cb => cb.checked = checkbox.checked);
+        }
+        
+        if (isItem) {
+            const fileDetail = checkbox.closest('details[data-type="file-item"]');
+            const fileCheckbox = fileDetail.querySelector('input[data-type="file-code"]');
+            const allItems = fileDetail.querySelectorAll('input[data-type="item-code"]');
+            const checkedItems = fileDetail.querySelectorAll('input[data-type="item-code"]:checked');
+            
             if (checkedItems.length === 0) {
                 fileCheckbox.checked = false;
                 fileCheckbox.indeterminate = false;
@@ -1609,9 +1710,62 @@ document.addEventListener('DOMContentLoaded', () => {
                 fileCheckbox.indeterminate = true;
             }
         }
-
+        
+        updateParentCheckboxes(checkbox.closest('.folder-item, .file-item'));
         updateChatUI();
     });
+
+    // NEW: Select/Clear All Logic
+    ui.selectAllBtn.addEventListener('click', () => {
+        ui.fileTree.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.checked = true;
+            cb.indeterminate = false;
+        });
+        updateChatUI();
+    });
+    ui.clearAllBtn.addEventListener('click', () => {
+        ui.fileTree.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.checked = false;
+            cb.indeterminate = false;
+        });
+        updateChatUI();
+    });
+
+
+    ui.actionFilters.addEventListener('click', (e) => {
+        const btn = e.target.closest('.action-filter-btn');
+        if (!btn) return;
+        
+        const tag = btn.dataset.filterTag;
+        btn.classList.toggle('active');
+        
+        if (activeFilters.has(tag)) {
+            activeFilters.delete(tag);
+        } else {
+            activeFilters.add(tag);
+        }
+        
+        applyFileTreeFilter();
+    });
+    
+    function applyFileTreeFilter() {
+        ui.fileTree.querySelectorAll('details[data-type="file-item"]').forEach(detail => {
+            if (activeFilters.size === 0) {
+                detail.style.display = '';
+                return;
+            }
+            
+            const fileTags = (detail.dataset.tags || '').split(',');
+            const hasActiveTag = fileTags.some(tag => activeFilters.has(tag));
+            
+            detail.style.display = hasActiveTag ? '' : 'none';
+        });
+        // Also update visibility of folders
+        ui.fileTree.querySelectorAll('details[data-type="folder-item"]').forEach(folder => {
+             const visibleFiles = folder.querySelectorAll('details[data-type="file-item"]:not([style*="display: none"])');
+             folder.style.display = (visibleFiles.length > 0 || activeFilters.size === 0) ? '' : 'none';
+        });
+    }
 
     ui.previewContextBtn.addEventListener('click', () => {
         populatePreviewContextModal();
