@@ -86,10 +86,10 @@
         .action-filter-btn { background-color: #374151; color: #d1d5db; border: 1px solid #4b5563; }
         .action-filter-btn.active { border-color: #00ED64; color: #00ED64; background-color: rgba(0, 237, 100, 0.1); }
         .action-tag-icon { color: #9ca3af; }
-        /* NEW: Folder Styles */
         .folder-summary { display: flex; align-items: center; padding: 0.3rem 0.5rem; cursor: pointer; hover:bg-gray-700/50; border-radius: 0.375rem; }
         .folder-summary:hover { background-color: rgba(75, 85, 99, 0.5); }
         .folder-content { padding-left: 1.25rem; }
+        .explanation-code { background-color: #212934; color: #a7f3d0; padding: 0.5rem 1rem; border-radius: 6px; font-family: monospace; font-size: 0.75rem; white-space: pre; margin-top: 0.5rem; }
     </style>
 </head>
 <body class="flex flex-col h-screen">
@@ -148,13 +148,32 @@
                  </div>
                 <details class="mt-2 text-sm">
                     <summary class="cursor-pointer text-gray-400 hover:text-white transition-colors"><i class="fa-solid fa-chevron-right details-arrow mr-2"></i>How does Hybrid Search work?</summary>
-                    <div class="p-2 mt-1 bg-gray-900/50 rounded-md text-xs text-gray-300 border mongodb-border">
-                        This app uses MongoDB Atlas Search's <strong>$rankFusion</strong> stage to combine two search methods:
-                        <ul class="list-disc ml-4 mt-1 space-y-1">
-                            <li><strong>Vector Search:</strong> Finds code based on its semantic meaning and concepts, not just keywords.</li>
-                            <li><strong>Full-Text Search:</strong> Excels at finding exact variable names, function calls, and specific terms.</li>
-                        </ul>
-                        By blending the results, you get the "best of both worlds"—semantically relevant code that also matches your specific keywords precisely.
+                    <div class="p-2 mt-1 bg-gray-900/50 rounded-md text-xs text-gray-300 border mongodb-border space-y-3">
+                        <h4 class="font-semibold text-base text-white">A Tale of Two Detectives 🕵️‍♂️</h4>
+                        <p>This app uses MongoDB Atlas Search's <strong>$rankFusion</strong> to combine two powerful search methods, giving you the most relevant results every time. Think of it like having two different detectives working on your case.</p>
+                        
+                        <div>
+                            <h5 class="font-bold text-sm text-green-400">1. Full-Text Search: The "Keyword Detective"</h5>
+                            <p class="mt-1">This is your traditional search. It's like using a book's index to find an exact word. It excels at finding literal matches for variables like <code>user_id</code> or functions like <code>connectToDB()</code>.</p>
+                        </div>
+
+                        <div>
+                            <h5 class="font-bold text-sm text-green-400">2. Vector Search: The "Concept Detective"</h5>
+                            <p class="mt-1">This is where the magic happens. Instead of matching words, this search understands the <strong>meaning and intent</strong> behind your code by converting it into "embeddings."</p>
+                            <div class="mt-2 p-2 border-l-2 border-green-500/50 bg-gray-800/30 rounded-r-md">
+                                <h6 class="font-semibold text-white">What are Text Embeddings?</h6>
+                                <p>An embedding is a numerical fingerprint that represents the semantic meaning of a piece of code. Snippets with similar purposes will have mathematically similar fingerprints, even if they don't share the same keywords. For example, these three functions all describe the same concept and would have very close embeddings:</p>
+                                <div class="explanation-code">def authenticate_user_credentials():
+const handleLogin = () => {}
+func (s *AuthService) VerifyPassword() {}</div>
+                                <p class="mt-2">When you search for "a function to verify users," your query is also converted into an embedding. Vector search then finds the code whose fingerprint is the closest match. It's searching by <strong>vibe and context</strong>, not just keywords.</p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h5 class="font-bold text-sm text-green-400">Blending the Results with $rankFusion</h5>
+                            <p class="mt-1"><strong>$rankFusion</strong> acts as the master detective, taking the reports from both detectives and producing a single, intelligently ranked list. It gives the highest scores to results that are both conceptually relevant and contain your precise keywords, giving you the best of both worlds.</p>
+                        </div>
                     </div>
                 </details>
                 <div id="search-results-container" class="mt-2 text-sm max-h-64 overflow-y-auto pr-2"></div>
@@ -165,8 +184,8 @@
                 <div class="flex justify-between items-center mb-2">
                     <h2 class="text-lg font-semibold">Build Context</h2>
                     <div class="flex items-center space-x-2">
-                         <button id="select-all-btn" class="text-xs text-gray-400 hover:text-white transition-colors"><i class="fa-solid fa-square-check mr-1"></i>Select All</button>
-                         <button id="clear-all-btn" class="text-xs text-gray-400 hover:text-white transition-colors"><i class="fa-regular fa-square mr-1"></i>Clear All</button>
+                          <button id="select-all-btn" class="text-xs text-gray-400 hover:text-white transition-colors"><i class="fa-solid fa-square-check mr-1"></i>Select All</button>
+                          <button id="clear-all-btn" class="text-xs text-gray-400 hover:text-white transition-colors"><i class="fa-regular fa-square mr-1"></i>Clear All</button>
                     </div>
                 </div>
 
@@ -320,6 +339,19 @@
         </div>
     </div>
 
+    <div id="view-file-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-gray-900 rounded-lg shadow-xl w-full max-w-7xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center p-4 border-b mongodb-border">
+                <h2 id="view-file-modal-title" class="text-lg font-semibold truncate">File Content</h2>
+                <button id="close-view-file-modal-btn" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-2">
+                <pre id="view-file-modal-content" class="modal-code-preview text-gray-300 w-full h-full text-xs"></pre>
+            </div>
+        </div>
+    </div>
+
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     // --- UI Elements ---
@@ -366,6 +398,10 @@ document.addEventListener('DOMContentLoaded', () => {
         actionFilters: document.getElementById('action-filters'),
         selectAllBtn: document.getElementById('select-all-btn'),
         clearAllBtn: document.getElementById('clear-all-btn'),
+        viewFileModal: document.getElementById('view-file-modal'),
+        viewFileModalTitle: document.getElementById('view-file-modal-title'),
+        viewFileModalContent: document.getElementById('view-file-modal-content'),
+        closeViewFileModalBtn: document.getElementById('close-view-file-modal-btn'),
     };
 
     // --- Constants ---
@@ -673,7 +709,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- NEW File Tree Rendering Logic ---
+    // --- File Tree Rendering Logic ---
 
     function buildTreeFromPaths(files) {
         const tree = {};
@@ -717,7 +753,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const details = document.createElement('details');
         details.className = 'folder-item';
         details.dataset.type = 'folder-item';
-        details.dataset.path = name; // Simple path for top-level folders
+        details.dataset.path = name;
 
         const summary = document.createElement('summary');
         summary.className = 'folder-summary';
@@ -796,7 +832,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const label = document.createElement('span');
         const pathParts = file.path.split('/');
-        label.textContent = pathParts[pathParts.length - 1]; // Show only filename
+        label.textContent = pathParts[pathParts.length - 1];
         label.className = 'text-sm file-label';
         
         labelWrapper.innerHTML = tagIcons;
@@ -806,6 +842,13 @@ document.addEventListener('DOMContentLoaded', () => {
         lockIndicator.className = 'lock-indicator hidden ml-2 text-yellow-400';
         lockIndicator.innerHTML = '<i class="fa-solid fa-lock"></i>';
 
+        const viewFileBtn = document.createElement('button');
+        viewFileBtn.type = 'button';
+        viewFileBtn.className = 'view-file-btn text-gray-400 hover:text-white ml-2 flex-shrink-0';
+        viewFileBtn.innerHTML = `<i class="fa-solid fa-eye"></i>`;
+        viewFileBtn.title = 'View file content';
+        viewFileBtn.dataset.path = file.path;
+
         const summarizeFileBtn = document.createElement('button');
         summarizeFileBtn.type = 'button';
         summarizeFileBtn.className = 'summarize-btn ml-2 flex-shrink-0';
@@ -813,7 +856,7 @@ document.addEventListener('DOMContentLoaded', () => {
         summarizeFileBtn.title = 'Get AI summary for this file';
         summarizeFileBtn.dataset.path = file.path;
 
-        leftSide.append(fileCheckbox, icon, fileIcon, labelWrapper, lockIndicator, summarizeFileBtn);
+        leftSide.append(fileCheckbox, icon, fileIcon, labelWrapper, lockIndicator, viewFileBtn, summarizeFileBtn);
 
         const tokenDisplay = document.createElement('span');
         tokenDisplay.className = 'token-display ml-2';
@@ -1270,24 +1313,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const itemName = res.item_name === '__file__' ? '<i>(File)</i>' : res.item_name;
             const score = (res.scoreDetails?.value || 0).toFixed(4);
-            const descriptionHTML = res.summary ? `<p class="text-xs text-gray-400 mt-1 italic">"${res.summary}"</p>` : `<p class="text-xs text-gray-400 mt-1 italic">"${res.description}"</p>`;
+            const summary = res.llm_analysis?.summary || res.llm_analysis?.description || 'No summary available.';
             
-            const tagIcons = (res.tags || []).map(tag => {
-                const tagInfo = ACTION_TAGS[tag];
-                if (!tagInfo) return '';
-                return `<i class="fa-solid ${tagInfo.icon} ${tagInfo.color} mr-1" title="${tagInfo.title}"></i>`;
-            }).join('');
-
+            const tagBadges = (res.tags || []).map(tag => 
+                `<span class="inline-block bg-gray-700 text-gray-300 text-xs font-mono px-2 py-0.5 rounded-full mr-1 mb-1">${tag}</span>`
+            ).join('');
 
             return `
                 <div class="mongodb-dark-bg p-3 my-2 rounded-md border mongodb-border">
                     <div class="flex justify-between items-start">
                         <div class="flex-1 min-w-0">
-                           <div class="font-semibold text-green-400 truncate">${res.file_path}</div>
-                           <div class="text-xs text-gray-300 ml-2">&hookrightarrow; ${tagIcons}${itemName}</div>
-                           ${descriptionHTML}
+                            <div class="font-semibold text-green-400 truncate">${res.file_path}</div>
+                            <div class="text-xs text-gray-300 ml-2">&hookrightarrow; ${itemName}</div>
+                            <p class="text-xs text-gray-400 mt-1 italic">"${summary}"</p>
+                            <div class="mt-2 flex flex-wrap">${tagBadges}</div>
                         </div>
-                        <div class="flex flex-col items-end ml-2">
+                        <div class="flex flex-col items-end ml-2 flex-shrink-0">
                              <span class="text-xs font-mono text-gray-500 mb-2">${score}</span>
                              <button class="review-context-btn text-xs mongodb-green-bg mongodb-green-bg-hover px-2 py-1 rounded" data-result-id="${resultId}">
                                  <i class="fa-solid fa-pen-to-square mr-1"></i> Review & Add
@@ -1378,7 +1419,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     return acc;
                 }, {});
 
-                // NEW: Render hierarchical tree
                 const fileTree = buildTreeFromPaths(data.files);
                 renderFileTree(fileTree, ui.fileTree);
                 applyFileTreeFilter(); 
@@ -1537,6 +1577,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     ui.closeReviewModalBtn.addEventListener('click', () => ui.reviewContextModal.classList.add('hidden'));
     ui.cancelReviewModalBtn.addEventListener('click', () => ui.reviewContextModal.classList.add('hidden'));
+    ui.closeViewFileModalBtn.addEventListener('click', () => ui.viewFileModal.classList.add('hidden'));
 
     ui.addReviewedSnippetBtn.addEventListener('click', () => {
         const mode = ui.addReviewedSnippetBtn.dataset.mode;
@@ -1635,14 +1676,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     ui.fileTree.addEventListener('click', (e) => {
         const summaryBtn = e.target.closest('.summarize-btn');
+        const viewBtn = e.target.closest('.view-file-btn');
+        
         if (summaryBtn) {
             e.preventDefault();
             e.stopPropagation();
             handleFetchSummary(summaryBtn.dataset.path, summaryBtn.dataset.name);
+        } else if (viewBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const filePath = viewBtn.dataset.path;
+            const fileData = scannedFilesData[filePath];
+            if (fileData) {
+                ui.viewFileModalTitle.textContent = filePath;
+                ui.viewFileModalContent.textContent = fileData.content; 
+                ui.viewFileModal.classList.remove('hidden');
+            }
         }
     });
     
-    // --- NEW: Hierarchical Checkbox Logic ---
     function updateParentCheckboxes(element) {
         let parentFolder = element.closest('.folder-item');
         while(parentFolder) {
@@ -1715,18 +1767,21 @@ document.addEventListener('DOMContentLoaded', () => {
         updateChatUI();
     });
 
-    // NEW: Select/Clear All Logic
     ui.selectAllBtn.addEventListener('click', () => {
         ui.fileTree.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-            cb.checked = true;
-            cb.indeterminate = false;
+            if (!cb.disabled) {
+                cb.checked = true;
+                cb.indeterminate = false;
+            }
         });
         updateChatUI();
     });
     ui.clearAllBtn.addEventListener('click', () => {
         ui.fileTree.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-            cb.checked = false;
-            cb.indeterminate = false;
+            if (!cb.disabled) {
+                cb.checked = false;
+                cb.indeterminate = false;
+            }
         });
         updateChatUI();
     });
@@ -1760,10 +1815,17 @@ document.addEventListener('DOMContentLoaded', () => {
             
             detail.style.display = hasActiveTag ? '' : 'none';
         });
-        // Also update visibility of folders
+        
         ui.fileTree.querySelectorAll('details[data-type="folder-item"]').forEach(folder => {
-             const visibleFiles = folder.querySelectorAll('details[data-type="file-item"]:not([style*="display: none"])');
-             folder.style.display = (visibleFiles.length > 0 || activeFilters.size === 0) ? '' : 'none';
+             const visibleContent = folder.querySelector('.folder-content').children;
+             let hasVisibleChildren = false;
+             for (const child of visibleContent) {
+                if (child.style.display !== 'none') {
+                    hasVisibleChildren = true;
+                    break;
+                }
+             }
+             folder.style.display = (hasVisibleChildren || activeFilters.size === 0) ? '' : 'none';
         });
     }
 

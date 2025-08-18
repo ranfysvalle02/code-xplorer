@@ -31,36 +31,84 @@ IGNORE_DIRS = {'.git', '.github', '__pycache__', 'node_modules', 'venv', '.vscod
 IGNORE_EXTS = {'.pyc', '.log', '.env', '.DS_Store', '.tmp', '.swo', '.swp'}
 BINARY_EXTS = {'.png', '.jpg', '.jpeg', '.gif', 'ico', '.zip', '.gz', '.pdf', '.exe', '.dll', '.so', '.webp', '.svg'}
 
-# --- EXPANDED: Action Tagging Definitions ---
+# --- ROBUST: Action Tagging Definitions ---
+# This section has been completely overhauled for accuracy and coverage.
+# It uses re.VERBOSE for commented, readable regex and context-aware patterns.
 ACTION_DEFINITIONS = {
     'data-storage': {
         'imports': {
-            'sqlalchemy', 'django.db', 'pymongo', 'psycopg2', 'mysql.connector',
-            'sqlite3', 'redis', 'cassandra', 'motor', 'asyncpg', 'peewee',
-            'mongoose', 'sequelize', 'prisma', 'typeorm', 'knex', 'slonik', 'pg',
-            'records', 'aiosqlite'
+            # Python
+            'sqlalchemy', 'django', 'pymongo', 'psycopg2', 'mysql', 'sqlite3', 'redis', 'cassandra',
+            'motor', 'asyncpg', 'peewee', 'dataset', 'records', 'aiosqlite', 'tortoise', 'pony',
+            # JS/TS
+            'mongoose', 'sequelize', 'prisma', 'typeorm', 'knex', 'slonik', 'pg', 'mysql2', 'redis', 'ioredis'
         },
-        'regex': re.compile(
-            r'\.Model|\.Base|\.Schema|DeclarativeBase|BaseModel|DataTypes\.|new Sequelize|PrismaClient|createConnection',
-            re.IGNORECASE
-        ),
-        'base_classes': {'Model', 'Base', 'DeclarativeBase', 'BaseModel'}
+        'regex': re.compile(r"""
+            # Python ORM / DB Driver Patterns
+            \b(Model|Base|Document|EmbeddedDocument)\b\s*\(         | # Common ORM base classes
+            class\s+\w+\(models\.Model\):                            | # Django model definition
+            db\.session\.(query|add|commit|execute|flush)            | # Flask-SQLAlchemy session actions
+            \.objects\.(filter|get|all|create)                       | # Django ORM queries
+            \.collection\s*\[\s*['"]                                 | # PyMongo collection access (dict style)
+            \.collection\s*\(\s*['"]                                 | # PyMongo/Motor collection access (method style)
+            \b(create_engine|declarative_base|sessionmaker)\b\s*\(   | # SQLAlchemy setup
+            \b(Column|String|Integer|Float|Boolean|ForeignKey|relationship|backref)\b\s*\( | # SQLAlchemy column types/relations
+            \b(execute|executemany|fetchone|fetchall)\b\s*\(         | # Generic DB-API cursor methods
+            redis\.Redis\(|redis\.StrictRedis\(                        | # Redis client instantiation
+
+            # JS/TS ORM / DB Driver Patterns
+            new\s+(mongoose|Sequelize)\.Schema\s*\(                  | # Mongoose/Sequelize schema creation
+            new\s+PrismaClient\s*\(                                  | # Prisma client instantiation
+            \.prisma\.\w+\.(findUnique|findMany|create)              | # Prisma queries
+            @(Entity|Table|PrimaryGeneratedColumn|Column)\(          | # TypeORM / other decorator-based ORMs
+            \b(createConnection|getManager|getRepository)\b\s*\(     | # TypeORM connection/repo
+            Sequelize\.define\s*\(                                   | # Sequelize model definition
+            knex\.schema\.                                          | # Knex.js schema builder
+            db\.collection\s*\(                                      | # MongoDB native driver
+            \.connect\s*\(\s*['"](postgres|mongodb|mysql):           # Common connection string patterns
+        """, re.IGNORECASE | re.VERBOSE)
     },
     'network-request': {
-        'imports': {'requests', 'aiohttp', 'httpx', 'urllib3', 'fetch', 'axios', 'got', 'superagent', 'fastapi', 'flask'},
-        'regex': re.compile(
-            r'\.get\(|\.post\(|\.put\(|\.delete\(|fetch\(|axios\.|urllib3\.PoolManager|'
-            r'app\.route\(|@app\.get\(|@app\.post\(|express\.Router\(|\.get\("/api',
-            re.IGNORECASE
-        )
+        'imports': {
+            # Python
+            'requests', 'aiohttp', 'httpx', 'urllib3', 'urllib', 'fastapi', 'flask', 'django', 'sanic', 'tornado',
+            # JS/TS
+            'axios', 'got', 'superagent', 'node-fetch', 'express', 'koa', 'fastify', 'hapi'
+        },
+        'regex': re.compile(r"""
+            # Python HTTP Clients & Frameworks
+            \b(requests|httpx)\.(get|post|put|delete|request)\s*\(    | # requests/httpx calls
+            aiohttp\.ClientSession                                  | # aiohttp session
+            urllib\.request\.urlopen                                | # Python standard library
+            @(app|api|router)\.(get|post|put|delete)\s*\(\s*['"]      | # FastAPI/Flask decorators
+            app\.route\s*\(\s*['"]                                   | # Flask route decorator
+
+            # JS/TS HTTP Clients & Frameworks
+            \bfetch\s*\(                                             | # Browser/Node Fetch API
+            \b(axios|got|superagent)\.(get|post|put|delete)           | # Common HTTP client libraries
+            (app|router)\.(get|post|put|delete|use)\s*\(\s*['"]       | # Express/Koa/etc. route definitions
+            express\.Router                                          | # Express router
+            http\.createServer                                       # Node.js native HTTP server
+        """, re.IGNORECASE | re.VERBOSE)
     },
     'file-io': {
-        'imports': {'os', 'shutil', 'pathlib', 'fs'},
-        'regex': re.compile(
-            r'open\(|readFile|writeFile|readFileSync|writeFileSync|pathlib\.|'
-            r'os\.path|fs\.promises',
-            re.IGNORECASE
-        )
+        'imports': {
+            # Python
+            'os', 'shutil', 'pathlib', 'io', 'tempfile',
+            # JS/TS
+            'fs', 'path'
+        },
+        'regex': re.compile(r"""
+            # Python File I/O
+            \bopen\s*\(                                              | # Built-in open() function
+            \b(os\.path|pathlib\.Path)                               | # os.path and pathlib usage
+            \b(shutil|tempfile)\.                                    | # shutil and tempfile library usage
+            \.(read|write|read_csv|to_csv)\(                         | # Common file operation methods (e.g., pandas)
+
+            # JS/TS File I/O
+            \bfs\.(readFile|writeFile|readFileSync|writeFileSync|createReadStream|promises) | # Node.js FS module
+            path\.(join|resolve|dirname)                                # Node.js Path module
+        """, re.IGNORECASE | re.VERBOSE)
     }
 }
 
@@ -137,11 +185,31 @@ CODE_ANALYSIS_SYSTEM_PROMPT = """You are an expert AI code analyst. Your task is
 CODE_SUMMARY_SYSTEM_PROMPT = """You are an expert code analyst. Your task is to provide a concise, one-paragraph summary of the provided code snippet.
 Focus on its primary purpose, inputs, and what it returns or its main side effect. Do not describe the implementation details line-by-line. Start the summary directly, without any preamble."""
 
-CODE_INDEXING_SYSTEM_PROMPT = """You are a search indexing expert. Your task is to create a concise, one-sentence description of the provided code snippet's primary function.
-Focus on extracting key nouns, verbs, and technical terms that would be useful for a search query. This description is for an internal search index, not for human display.
-Example: 'A Flask route that handles user authentication via POST requests using JWT for authorization.'
-Start the description directly, without any preamble."""
+CODE_METADATA_SYSTEM_PROMPT = """You are an expert AI code analyst. Your task is to analyze a code snippet and return a structured JSON object.
 
+**Directives:**
+- Analyze the provided code snippet for its primary purpose, technologies used, and key entities.
+- Your entire response MUST be a single JSON object. Do not include any text, explanations, or markdown formatting before or after the JSON object.
+- If a field is not applicable, provide an empty string "" or an empty array [].
+
+**JSON Structure:**
+{
+  "summary": "A concise, one-paragraph summary of what the code does, suitable for a developer to read.",
+  "description": "A dense, one-sentence description optimized for search. Include key nouns, verbs, and technologies.",
+  "purpose": "A very brief, high-level statement of the code's main goal (e.g., 'User authentication endpoint', 'Database model for products', 'File processing utility').",
+  "tags": ["A list of relevant technical tags like 'api-endpoint', 'data-model', 'authentication', 'async', 'file-io', 'data-processing', 'database-query', 'orm'],
+  "key_entities": ["A list of important function names, class names, variable names, or concepts mentioned in the code."]
+}
+
+**Example Output:**
+{
+  "summary": "This Python code defines a Flask route at '/api/login' that handles user authentication. It accepts POST requests with a username and password, validates them against a User model, and if successful, generates and returns a JWT token for session management. It uses SQLAlchemy for database interaction.",
+  "description": "A Flask POST route for user authentication using SQLAlchemy and JWT token generation.",
+  "purpose": "User authentication endpoint",
+  "tags": ["api-endpoint", "authentication", "database-query", "orm"],
+  "key_entities": ["app.route", "login", "request.get_json", "User.query.filter_by", "create_access_token"]
+}
+"""
 
 # --- Core Backend Functions ---
 
@@ -241,10 +309,10 @@ def scan_directory(path, session_id):
     SCAN_SESSIONS[session_id]['scanned_files_data'] = scanned_files_data
 
 
-# --- NEW: Robust Code Parsing Engine ---
+# --- Robust Code Parsing Engine ---
 
 class PythonCodeParser(ast.NodeVisitor):
-    """A more robust AST parser for Python."""
+    """A robust AST parser for Python."""
     def __init__(self):
         self.structure = []
 
@@ -267,7 +335,7 @@ def _parse_python_structure(content):
         parser.visit(tree)
         return sorted(parser.structure, key=lambda x: x['start_line'])
     except SyntaxError:
-        return [] # Return empty list if AST parsing fails
+        return []
 
 def _parse_js_ts_structure(content):
     """Parses JS/TS code using a comprehensive set of regex patterns."""
@@ -284,56 +352,74 @@ def _parse_js_ts_structure(content):
         r')', re.MULTILINE)
 
     for match in pattern.finditer(content):
-        # Find the first non-None group to get the name
         name = next((g for g in match.groups() if g is not None), None)
         if not name:
             continue
             
         line_number = content.count('\n', 0, match.start()) + 1
         
-        # Determine type based on the matched text
         full_match_text = match.group(0)
         item_type = 'function'
         if 'class' in full_match_text:
             item_type = 'class'
-        elif 'interface' in full_match_text:
+        elif 'interface' in full_match_text or 'type' in full_match_text:
             item_type = 'interface'
-        elif 'type' in full_match_text:
-             item_type = 'interface' # Treat TS types like interfaces for UI purposes
 
         structure.append({'name': name, 'type': item_type, 'start_line': line_number})
         
     return sorted(structure, key=lambda x: x['start_line'])
 
-def get_imports_from_content(content):
-    """Extracts imported modules from file content using regex."""
+# --- CRITICAL FIX: Overhauled Import Parser ---
+# The original function was broken for Python. This version correctly handles both ecosystems.
+def get_imports_from_content(content, file_path):
+    """Extracts imported modules from file content using regex, with logic tailored to file type."""
     imports = set()
-    # Handles import {..} from '..', import .. from '..', require('..')
-    import_pattern = re.compile(r'import(?:.*?from\s*)?[\'"]([^\'"]+)[\'"]|require\([\'"]([^\'"]+)[\'"]\)')
-    matches = import_pattern.findall(content)
-    for match in matches:
-        # match is a tuple of groups, e.g., ('react', '') or ('', 'express')
-        module_name = next((g for g in match if g), None)
-        if module_name:
-            # Handle relative paths vs library names
-            if not module_name.startswith(('.', '/')):
-                imports.add(module_name.split('/')[0]) # Get base package name
+    ext = os.path.splitext(file_path)[1].lower()
+
+    # --- Python import patterns ---
+    # Handles: import os, import os.path, from os import path, from a.b import c
+    if ext == '.py':
+        py_pattern = re.compile(r'^\s*(?:from\s+([^\s.]+)|import\s+([^\s.]+))', re.MULTILINE)
+        for match in py_pattern.finditer(content):
+            # Takes the root module (e.g., 'os' from 'os.path')
+            module = (match.group(1) or match.group(2))
+            if module:
+                imports.add(module.split('.')[0])
+
+    # --- JS/TS import/require patterns ---
+    # Handles: import ... from 'module', import 'module', require('module'), import('@scope/module')
+    elif ext in ['.js', '.jsx', '.ts', '.tsx']:
+        js_pattern = re.compile(r'(?:import|from|require)\s*\(?\s*[\'"]([^\'"]+)[\'"]')
+        for match in js_pattern.finditer(content):
+            module_name = match.group(1)
+            # Ignore relative paths
+            if module_name and not module_name.startswith(('.', '/')):
+                # For scoped packages like @angular/core, add both 'angular' and 'core'
+                if module_name.startswith('@'):
+                    parts = module_name.split('/')
+                    if len(parts) > 0: imports.add(parts[0][1:]) # Add scope name without '@'
+                    if len(parts) > 1: imports.add(parts[1])     # Add package name
+                else:
+                    imports.add(module_name.split('/')[0]) # Add root package
     return imports
 
 def analyze_content_for_tags(content, imports):
     """Analyzes a block of code for action tags."""
     tags = set()
     for tag, definition in ACTION_DEFINITIONS.items():
-        if imports.intersection(definition['imports']):
+        # Check 1: Did we import a library associated with this tag?
+        if not imports.isdisjoint(definition['imports']):
             tags.add(tag)
+        # Check 2: Does the code contain a regex pattern associated with this tag?
         if definition['regex'].search(content):
             tags.add(tag)
     return sorted(list(tags))
 
 
+# --- CRITICAL FIX: Improved Tagging Logic ---
 def parse_code_structure(file_path, content):
     """
-    Main dispatcher for parsing. Selects parser based on file extension, then assigns tags.
+    Main dispatcher for parsing. Selects parser, gets imports, and assigns tags robustly.
     """
     ext = os.path.splitext(file_path)[1].lower()
     structure = []
@@ -343,17 +429,19 @@ def parse_code_structure(file_path, content):
     elif ext in ['.js', '.jsx', '.ts', '.tsx']:
         structure = _parse_js_ts_structure(content)
 
-    all_imports = get_imports_from_content(content)
-    file_level_tags = set()
+    # Use the new, reliable import parser
+    all_imports = get_imports_from_content(content, file_path)
+    
+    # Analyze the entire file first to get a baseline set of tags from imports and top-level code
+    file_level_tags = set(analyze_content_for_tags(content, all_imports))
 
+    # Analyze each function/class and add its specific tags to the file's overall tags
     for item in structure:
         item_code = extract_code_block(content, item['start_line'], item.get('end_line'), ext)
+        # We use all_imports here because an item might use a module imported at the top of the file
         item_tags = analyze_content_for_tags(item_code, all_imports)
         item['tags'] = item_tags
         file_level_tags.update(item_tags)
-
-    if not file_level_tags: # If no structure, analyze whole file
-        file_level_tags.update(analyze_content_for_tags(content, all_imports))
 
     return structure, sorted(list(file_level_tags))
 
@@ -369,13 +457,12 @@ def extract_code_block(content, start_line, end_line=None, file_ext='.js'):
     if end_line is not None and end_line <= len(lines):
         return '\n'.join(lines[start_line_idx : end_line])
 
-    # Fallback logic if end_line is not provided
     if file_ext == '.py':
         initial_indent = len(lines[start_line_idx]) - len(lines[start_line_idx].lstrip(' '))
         block_lines = [lines[start_line_idx]]
         for i in range(start_line_idx + 1, len(lines)):
             line = lines[i]
-            if line.strip() == "":
+            if not line.strip():
                 block_lines.append(line)
                 continue
             current_indent = len(line) - len(line.lstrip(' '))
@@ -470,7 +557,7 @@ def create_search_indexes():
 # --- Parallel Processing Functions ---
 
 def _index_one_snippet(snippet_data):
-    """Worker function to process and index a single code snippet with its summary."""
+    """Worker function to process and index a single code snippet using a structured LLM call."""
     session_id = snippet_data['session_id']
     with indexing_lock:
         SCAN_SESSIONS[session_id]['indexing_status']["progress"] += 1
@@ -478,43 +565,60 @@ def _index_one_snippet(snippet_data):
     file_path = snippet_data['file_path']
     item_name = snippet_data['item_name']
     code_to_process = snippet_data['code']
-    tags = snippet_data.get('tags', [])
+    static_tags = snippet_data.get('tags', [])
     unique_id = f"{session_id}-{file_path}::{item_name}"
 
     try:
         if not code_to_process.strip():
             return "Skipped empty snippet"
 
-        # 1. Generate description
-        indexing_prompt = f"Describe this code:\n\n```\n{code_to_process}\n```"
-        indexing_messages = [{"role": "system", "content": CODE_INDEXING_SYSTEM_PROMPT}, {"role": "user", "content": indexing_prompt}]
-        desc_response = get_llm_response(client, indexing_messages, DEPLOYMENT)
-        description_for_index = desc_response['answer']
-        if "[Error" in description_for_index:
-              raise Exception(f"LLM error for description: {description_for_index}")
+        # 1. Generate structured metadata with a single LLM call
+        analysis_prompt = f"Analyze this code snippet from file `{file_path}`:\n\n```\n{code_to_process}\n```"
+        messages = [{"role": "system", "content": CODE_METADATA_SYSTEM_PROMPT}, {"role": "user", "content": analysis_prompt}]
+        llm_response = get_llm_response(client, messages, DEPLOYMENT, is_json=True)
 
-        # 2. Generate summary
-        summary_prompt = f"Summarize this code:\n\n```\n{code_to_process}\n```"
-        summary_messages = [{"role": "system", "content": CODE_SUMMARY_SYSTEM_PROMPT}, {"role": "user", "content": summary_prompt}]
-        summary_response = get_llm_response(client, summary_messages, DEPLOYMENT)
-        user_facing_summary = summary_response['answer']
-        if "[Error" in user_facing_summary:
-              raise Exception(f"LLM error for summary: {user_facing_summary}")
+        if "[Error" in llm_response['answer']:
+            raise Exception(f"LLM error for metadata generation: {llm_response['answer']}")
 
-        # 3. Generate embedding
+        try:
+            llm_analysis = json.loads(llm_response['answer'])
+            # Validate essential keys
+            if 'summary' not in llm_analysis or 'description' not in llm_analysis:
+                raise KeyError("Essential keys 'summary' or 'description' missing from LLM response.")
+        except (json.JSONDecodeError, KeyError) as e:
+            logging.error(f"Failed to parse or validate JSON from LLM for {unique_id}. Error: {e}. Response: {llm_response['answer']}")
+            # Fallback: create a basic analysis object to ensure indexing can proceed
+            llm_analysis = {
+                "summary": "AI analysis failed. This is the raw code snippet.",
+                "description": f"Code snippet from {file_path} containing {item_name}.",
+                "purpose": "Unknown due to analysis error.",
+                "tags": [], "key_entities": []
+            }
+
+        # 2. Generate embedding
         embedding = get_voyage_embedding(code_to_process)
 
-        # 4. Save document
+        # 3. Combine tags from static analysis and LLM analysis
+        llm_tags = llm_analysis.get('tags', [])
+        combined_tags = sorted(list(set(static_tags + llm_tags)))
+
+        # 4. Prepare and save the document
         document = {
-            "session_id": session_id, "file_path": file_path, "item_name": item_name,
-            "code": code_to_process, "description": description_for_index,
-            "summary": user_facing_summary, "embedding": embedding, "tags": tags
+            "session_id": session_id,
+            "file_path": file_path,
+            "item_name": item_name,
+            "code": code_to_process,
+            "llm_analysis": llm_analysis,
+            "embedding": embedding,
+            "tags": combined_tags
         }
         code_collection.update_one({"_id": unique_id}, {"$set": document}, upsert=True)
-        return f"Successfully indexed"
+        return "Successfully indexed"
+
     except Exception as e:
         logging.error(f"Failed to index snippet {unique_id}: {e}")
-        return f"Failed to index"
+        return "Failed to index"
+
 
 def process_and_index_snippets(files_data, session_id):
     """
@@ -780,8 +884,8 @@ def summarize():
             "file_path": file_path,
             "item_name": item_name
         })
-        if document and "summary" in document:
-            return jsonify({"answer": document["summary"]})
+        if document and "llm_analysis" in document and "summary" in document["llm_analysis"]:
+            return jsonify({"answer": document["llm_analysis"]["summary"]})
         else:
             return jsonify({"answer": "Summary not found in the index. It may still be processing. Please try again shortly."})
 
@@ -925,7 +1029,15 @@ def search():
                                     "$search": {
                                         "index": "default_text_index",
                                         "compound": {
-                                            "must": [{"text": {"query": query, "path": ["item_name", "description", "summary", "code"]}}],
+                                            "must": [{
+                                                "text": {
+                                                    "query": query,
+                                                    "path": [
+                                                        "item_name", "code", "tags",
+                                                        "llm_analysis.summary", "llm_analysis.description", "llm_analysis.key_entities"
+                                                    ]
+                                                }
+                                            }],
                                             "filter": [{"term": {"path": "session_id", "query": session_id}}]
                                         }
                                     }
@@ -941,8 +1053,7 @@ def search():
             {
                 "$project": {
                     "_id": 0, "file_path": 1, "item_name": 1,
-                    "description": 1, "summary": 1, "code": 1,
-                    "tags": 1, # Return the tags
+                    "llm_analysis": 1, "code": 1, "tags": 1,
                     "scoreDetails": { "$meta": "scoreDetails" }
                 }
             },
