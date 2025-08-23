@@ -7,24 +7,6 @@ We've all been there: starting a new job or joining a new team, you're faced wit
 What if you could have an expert AI architect sit with you, point out the critical files, and then answer your questions with complete transparency? And what if this entire powerful experience was delivered in a **single, self-contained Python script** you can run locally against any codebase?
 
 That’s not a future concept; it’s the reality of a complete, local-first web tool I built called **Code Explorer AI**. It’s designed to transform AI from an opaque black box into a trustworthy, transparent partner for developers, all from a single `app.py` file.
-
-## From Black Box to Glass Box: Building Trustworthy AI
-
-Artificial intelligence is phenomenal at analyzing complex information, but it has a trust problem. When you ask an AI to analyze a codebase, how do you know it's right? How did it arrive at its conclusion? If you can't see the "thought process," you're trusting a black box, which can be risky when dealing with intricate software projects.
-
-This is where a new paradigm in AI interaction comes in: **reasoned responses**. Instead of just getting a final answer, you get the answer *and* a step-by-step breakdown of how the AI produced it. This creates an audit trail, transforming the AI from an opaque oracle into a transparent partner.
-
-### The Problem: Opaque AI is a Risky Co-Pilot
-
-Imagine asking an AI, "Refactor this function to be more efficient." It gives you a new block of code. Do you trust it blindly and commit it to your main branch? Probably not. You'd want to know:
-
--   What logic did it identify as inefficient?
--   What assumptions did it make about the data?
--   Did it consider any edge cases?
-
-Without this reasoning, the AI's suggestion is just a "trust me" proposition. A visible reasoning process, however, gives you the power to audit its logic, verify its claims against the source code, and ultimately make an informed decision. It's the key to building confidence and control. 🧠
-
-### The Solution: A Single, Self-Contained Python Script  
   
 **Code Explorer AI** brings these ideas to life in a local, self-contained way. You run `app.py` on your machine, point it to a directory or a GitHub repo, and it performs a multi-stage analysis of every file. It extracts structural and conceptual information—finding classes, functions, imports, and code “action tags” (like `data-storage` or `network-request`). An **LLM** (Large Language Model) then creates specialized JSON “metadata” for each snippet, distilling the purpose, key entities, and a plain-English summary.  
   
