@@ -365,35 +365,58 @@ def _parse_python_structure(content):
         return []
 
 def _parse_js_ts_structure(content):
-    """Parses JS/TS code using a comprehensive set of regex patterns."""
+    """
+    Parses JS/TS code using a more robust set of regex patterns to handle modern syntax.
+    """
     structure = []
+    # This enhanced regex captures a wider array of function/class/component declarations
+    # found in React, Next.js, TypeScript, and modern Node.js.
     pattern = re.compile(
-        r'^(?:export\s+(?:default\s+)?|const|let|var)?'
-        r'(?:async\s+)?'
-        r'(?:function\s*\*?\s*([\w$]+)\s*\(|'
-        r'([\w$]+)\s*=\s*(?:async\s*)?\(|'
-        r'class\s+([\w$]+)(?:\s+extends\s+[\w$.]+)?\s*\{|'
-        r'interface\s+([\w$]+)\s*\{|'
-        r'type\s+([\w$]+)\s*=\s*\{)'
-        r')', re.MULTILINE)
+        r"""
+        ^                                       # Start of a line
+        \s* # Optional leading whitespace
+        (?:export\s+)?                          # Optional 'export'
+        (?:default\s+)?                         # Optional 'default'
+        (?:async\s+)?                           # Optional 'async'
+        
+        # Match different declaration types
+        (?:
+            # Case 1: Standard keywords like function, class, interface, type
+            (?:function(?:\s+\*)?|class|interface|type)\s+
+            (?P<name1>[\w\$]+)                  # Capture the name (group 'name1')
+            
+            | # OR
+            
+            # Case 2: Variable declarations for functions/components
+            (?:const|let|var)\s+
+            (?P<name2>[\w\$]+)\s*[:=]           # Capture the name (group 'name2'), followed by : or =
+        )
+        """,
+        re.MULTILINE | re.VERBOSE
+    )
 
     for match in pattern.finditer(content):
-        name = next((g for g in match.groups() if g is not None), None)
+        # Determine the name from the correct capture group
+        name = match.group('name1') or match.group('name2')
         if not name:
             continue
             
         line_number = content.count('\n', 0, match.start()) + 1
         
+        # Determine the type based on keywords in the matched line
         full_match_text = match.group(0)
-        item_type = 'function'
+        item_type = 'function' # Default type
         if 'class' in full_match_text:
             item_type = 'class'
-        elif 'interface' in full_match_text or 'type' in full_match_text:
+        elif 'interface' in full_match_text:
             item_type = 'interface'
+        elif 'type' in full_match_text:
+            item_type = 'interface' # Treat types and interfaces similarly for icon purposes
 
         structure.append({'name': name, 'type': item_type, 'start_line': line_number})
         
     return sorted(structure, key=lambda x: x['start_line'])
+
 
 def get_imports_from_content(content, file_path):
     """Extracts imported modules from file content using regex, with logic tailored to file type."""
@@ -748,7 +771,6 @@ def background_scan_and_index(session_id, path_or_url):
 
         logging.info(f"[{session_id}] Change detection: {len(new_files)} new, {len(modified_files)} modified, {len(deleted_files)} deleted.")
 
-        # Store the change details in the session
         session['change_summary'] = {
             "new": len(new_files),
             "modified": len(modified_files),
