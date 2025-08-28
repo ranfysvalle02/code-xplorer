@@ -1167,9 +1167,7 @@
           closeViewFileModalBtn: document.getElementById(
             "close-view-file-modal-btn"
           ),
-          // ▼▼▼ CHANGE START ▼▼▼
           copyCodeContextBtn: document.getElementById("copy-code-context-btn"),
-          // ▲▲▲ CHANGE END ▲▲▲
         };
 
         // --- Constants ---
@@ -1218,6 +1216,7 @@
         let searchResultsCurrentPage = 1;
         let filesProcessed = false;
         let activeFilters = new Set();
+        let changeSummaryAnnounced = false; // NEW: State to track if summary was shown
 
         function initNewConversation(id, name, messages = []) {
           conversations[id] = { id, name, messages };
@@ -1238,6 +1237,7 @@
           fullSearchResults = [];
           searchResultsCurrentPage = 1;
           filesProcessed = false;
+          changeSummaryAnnounced = false; // NEW: Reset on new scan
 
           activeFilters.clear();
           ui.actionFilters
@@ -2431,39 +2431,58 @@
             if (data.status === "error") {
               throw new Error(data.error);
             }
+            
+            // ▼▼▼ CHANGE START ▼▼▼
+            // Announce the change summary once when files are first processed
+            if (data.files && !filesProcessed && data.changeSummary) {
+                if (!changeSummaryAnnounced) {
+                    const { new: newFiles, modified, deleted } = data.changeSummary;
+                    const totalChanges = newFiles + modified + deleted;
+                    let summaryMessage = `**Analysis Complete for \`${data.displayName}\`**\n\n`;
 
-            // Once files are returned at least once:
-            if (data.files && !filesProcessed) {
-              filesProcessed = true;
-              setScanningState(false);
-              ui.statusDot.classList.remove("bg-yellow-500", "animate-pulse");
-              ui.statusDot.classList.add("bg-green-500");
+                    if (totalChanges > 0) {
+                        summaryMessage += `I found the following changes:\n- **${newFiles}** new files\n- **${modified}** modified files\n- **${deleted}** deleted files\n\n`;
+                        if (newFiles + modified > 0) {
+                           summaryMessage += `I will now re-index the changes in the background.`;
+                        }
+                    } else {
+                        summaryMessage += "No changes were detected since the last scan. The existing index is up-to-date.\n\n";
+                    }
+                    summaryMessage += "The file tree is now available to build your context."
 
-              scannedFilesData = data.files.reduce((acc, file) => {
-                acc[file.path] = {
-                  char_count: file.char_count,
-                  content: file.content,
-                  tags: file.tags,
-                };
-                return acc;
-              }, {});
-              const fileTree = buildTreeFromPaths(data.files);
-              renderFileTree(fileTree, ui.fileTree);
-              applyFileTreeFilter();
+                    createMessage("assistant", summaryMessage);
+                    renderActiveConversation();
+                    changeSummaryAnnounced = true; 
+                }
+            // ▲▲▲ CHANGE END ▲▲▲
+            
+                filesProcessed = true;
+                setScanningState(false);
+                ui.statusDot.classList.remove("bg-yellow-500", "animate-pulse");
+                ui.statusDot.classList.add("bg-green-500");
 
-              ui.scanSection.style.display = "none";
-              ui.newScanBtn.style.display = "block";
-              ui.searchSection.classList.remove("hidden", "animate-fadeInUp");
-              ui.contextBuilderSection.classList.remove(
-                "hidden",
-                "animate-fadeInUp"
-              );
+                scannedFilesData = data.files.reduce((acc, file) => {
+                    acc[file.path] = {
+                    char_count: file.char_count,
+                    content: file.content,
+                    tags: file.tags,
+                    };
+                    return acc;
+                }, {});
+                const fileTree = buildTreeFromPaths(data.files);
+                renderFileTree(fileTree, ui.fileTree);
+                applyFileTreeFilter();
 
-              const messageContent = `Analysis complete for \`${data.displayName}\`. The file tree is now available. I am now indexing all functions and classes in the background to enable search.`;
-              createMessage("assistant", messageContent);
-              renderActiveConversation();
-              updateChatUI();
+                ui.scanSection.style.display = "none";
+                ui.newScanBtn.style.display = "block";
+                ui.searchSection.classList.remove("hidden", "animate-fadeInUp");
+                ui.contextBuilderSection.classList.remove(
+                    "hidden",
+                    "animate-fadeInUp"
+                );
+                updateChatUI();
             }
+
 
             const indexingStatus = data.indexingStatus || {};
             // If indexing is still running, update UI
@@ -2490,7 +2509,7 @@
             }
 
             // *** Force exit once the server says complete or scan_complete
-            if (data.status === "complete" || data.scan_complete) {
+            if (data.status === "complete") {
               clearInterval(scanStatusInterval);
               scanStatusInterval = null;
 
@@ -2499,7 +2518,7 @@
                 ui.indexingProgressBar.style.width = "100%";
                 ui.indexingStageText.textContent = "All Systems Go!";
                 ui.indexingProgressText.textContent = "Indexing Complete!";
-                if (indexingStatus.total > 0) {
+                if (indexingStatus.total > 0 && !changeSummaryAnnounced) {
                   createMessage(
                     "assistant",
                     `✅ Background indexing of ${indexingStatus.total} snippets is complete. Search is now fully available.`
@@ -2963,7 +2982,6 @@
           ui.previewContextModal.classList.add("hidden")
         );
 
-        // ▼▼▼ CHANGE START ▼▼▼
         ui.copyCodeContextBtn.addEventListener("click", () => {
           const codeToCopy = ui.previewCodeContext.textContent;
           navigator.clipboard
@@ -2983,7 +3001,6 @@
               alert("Could not copy text to clipboard.");
             });
         });
-        // ▲▲▲ CHANGE END ▲▲▲
 
         // --- Initial Setup ---
         resetForNewScan();

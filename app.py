@@ -232,15 +232,12 @@ def generate_codebase_id(path_or_url: str) -> str:
     """
     normalized_input = path_or_url.strip()
     
-    # Check if it's a Git URL first
     repo_info = parse_github_input(normalized_input)
     if repo_info:
-        # Use the normalized git URL for a consistent ID
         identifier = repo_info['url'].lower()
         if identifier.endswith('.git'):
             identifier = identifier[:-4]
     else:
-        # For local paths, use the absolute path to make it unique to the machine
         identifier = os.path.abspath(normalized_input)
 
     return hashlib.sha256(identifier.encode()).hexdigest()
@@ -751,6 +748,13 @@ def background_scan_and_index(session_id, path_or_url):
 
         logging.info(f"[{session_id}] Change detection: {len(new_files)} new, {len(modified_files)} modified, {len(deleted_files)} deleted.")
 
+        # Store the change details in the session
+        session['change_summary'] = {
+            "new": len(new_files),
+            "modified": len(modified_files),
+            "deleted": len(deleted_files)
+        }
+
         session['scan_complete'] = True
         
         files_to_index_paths = new_files + modified_files
@@ -810,7 +814,8 @@ def get_scan_status(session_id):
         "message": session.get('message'),
         "error": session.get('error_message'),
         "displayName": session.get('display_name'),
-        "indexingStatus": session.get('indexing_status', {})
+        "indexingStatus": session.get('indexing_status', {}),
+        "changeSummary": session.get('change_summary')
     }
 
     if session.get('scan_complete') and not session.get('files_sent'):
