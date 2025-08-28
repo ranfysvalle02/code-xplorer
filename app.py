@@ -12,6 +12,8 @@ import atexit
 import threading
 import concurrent.futures
 import uuid
+import hashlib
+import time
 from dotenv import load_dotenv
 from openai import AzureOpenAI
 from flask import Flask, request, jsonify, render_template
@@ -32,8 +34,6 @@ IGNORE_EXTS = {'.pyc', '.log', '.env', '.DS_Store', '.tmp', '.swo', '.swp'}
 BINARY_EXTS = {'.png', '.jpg', '.jpeg', '.gif', 'ico', '.zip', '.gz', '.pdf', '.exe', '.dll', '.so', '.webp', '.svg'}
 
 # --- ROBUST: Action Tagging Definitions ---
-# This section has been completely overhauled for accuracy and coverage.
-# It uses re.VERBOSE for commented, readable regex and context-aware patterns.
 ACTION_DEFINITIONS = {
     'data-storage': {
         'imports': {
@@ -116,7 +116,7 @@ ACTION_DEFINITIONS = {
 # --- Global variables ---
 SCANNED_FILES_STRUCTURE = {}
 WHOLE_FILE_SUMMARY_CACHE = {}
-mongo_client, db, code_collection = None, None, None
+mongo_client, db, code_collection, codebase_state_collection = None, None, None, None
 SCAN_SESSIONS = {}
 
 # --- State for Background Indexing ---
@@ -153,9 +153,12 @@ except Exception as e:
 
 # --- MongoDB Setup Functions ---
 def setup_database_and_collection(client, db_name, coll_name):
-    """Gets the database and creates the collection if it doesn't exist."""
+    """Gets the database and creates the required collections if they don't exist."""
     try:
         db = client[db_name]
+        state_coll_name = f"{coll_name}_state"
+
+        # Setup for main code collection
         if coll_name not in db.list_collection_names():
             logging.warning(f"Collection '{coll_name}' not found. Creating it now...")
             db.create_collection(coll_name)
@@ -163,14 +166,23 @@ def setup_database_and_collection(client, db_name, coll_name):
         else:
             logging.info(f"Successfully connected to existing collection '{coll_name}'.")
         collection = db[coll_name]
-        return db, collection
+
+        # Setup for the state collection
+        if state_coll_name not in db.list_collection_names():
+            logging.info(f"Creating state tracking collection: '{state_coll_name}'")
+            db.create_collection(state_coll_name)
+            db[state_coll_name].create_index("codebase_id")
+            logging.info(f"State collection '{state_coll_name}' created successfully.")
+        state_collection = db[state_coll_name]
+
+        return db, collection, state_collection
     except OperationFailure as e:
         logging.error(f"MongoDB operation failed during setup: {e.details}")
         logging.error("Please ensure the user has the correct permissions (e.g., readWrite, dbAdmin).")
-        return None, None
+        return None, None, None
     except Exception as e:
         logging.error(f"An unexpected error occurred during database setup: {e}")
-        return None, None
+        return None, None, None
 
 # --- Prompt Templates ---
 CODE_ANALYSIS_SYSTEM_PROMPT = """You are an expert AI code analyst. Your task is to answer questions about a codebase.
@@ -213,10 +225,28 @@ CODE_METADATA_SYSTEM_PROMPT = """You are an expert AI code analyst. Your task is
 
 # --- Core Backend Functions ---
 
+def generate_codebase_id(path_or_url: str) -> str:
+    """
+    Creates a consistent SHA256 hash to serve as a unique ID for a codebase.
+    Distinguishes between remote Git URLs and local absolute paths.
+    """
+    normalized_input = path_or_url.strip()
+    
+    # Check if it's a Git URL first
+    repo_info = parse_github_input(normalized_input)
+    if repo_info:
+        # Use the normalized git URL for a consistent ID
+        identifier = repo_info['url'].lower()
+        if identifier.endswith('.git'):
+            identifier = identifier[:-4]
+    else:
+        # For local paths, use the absolute path to make it unique to the machine
+        identifier = os.path.abspath(normalized_input)
+
+    return hashlib.sha256(identifier.encode()).hexdigest()
+
 def get_llm_response(client, messages, model_deployment, is_json=False):
-    """
-    Calls the chat completions API.
-    """
+    """Calls the chat completions API."""
     if not client:
         return {"answer": "[Error: OpenAI client not configured]"}
     try:
@@ -340,15 +370,14 @@ def _parse_python_structure(content):
 def _parse_js_ts_structure(content):
     """Parses JS/TS code using a comprehensive set of regex patterns."""
     structure = []
-    # This single regex captures a wide array of function and class declarations
     pattern = re.compile(
-        r'^(?:export\s+(?:default\s+)?|const|let|var)?'  # Optional keywords
-        r'(?:async\s+)?'  # Optional async
-        r'(?:function\s*\*?\s*([\w$]+)\s*\(|'  # Named function
-        r'([\w$]+)\s*=\s*(?:async\s*)?\(|'  # Arrow function assigned to var
-        r'class\s+([\w$]+)(?:\s+extends\s+[\w$.]+)?\s*\{|'  # Class declaration
-        r'interface\s+([\w$]+)\s*\{|' # TypeScript Interface
-        r'type\s+([\w$]+)\s*=\s*\{)' # TypeScript Type Alias
+        r'^(?:export\s+(?:default\s+)?|const|let|var)?'
+        r'(?:async\s+)?'
+        r'(?:function\s*\*?\s*([\w$]+)\s*\(|'
+        r'([\w$]+)\s*=\s*(?:async\s*)?\(|'
+        r'class\s+([\w$]+)(?:\s+extends\s+[\w$.]+)?\s*\{|'
+        r'interface\s+([\w$]+)\s*\{|'
+        r'type\s+([\w$]+)\s*=\s*\{)'
         r')', re.MULTILINE)
 
     for match in pattern.finditer(content):
@@ -369,54 +398,42 @@ def _parse_js_ts_structure(content):
         
     return sorted(structure, key=lambda x: x['start_line'])
 
-# --- CRITICAL FIX: Overhauled Import Parser ---
-# The original function was broken for Python. This version correctly handles both ecosystems.
 def get_imports_from_content(content, file_path):
     """Extracts imported modules from file content using regex, with logic tailored to file type."""
     imports = set()
     ext = os.path.splitext(file_path)[1].lower()
 
-    # --- Python import patterns ---
-    # Handles: import os, import os.path, from os import path, from a.b import c
     if ext == '.py':
         py_pattern = re.compile(r'^\s*(?:from\s+([^\s.]+)|import\s+([^\s.]+))', re.MULTILINE)
         for match in py_pattern.finditer(content):
-            # Takes the root module (e.g., 'os' from 'os.path')
             module = (match.group(1) or match.group(2))
             if module:
                 imports.add(module.split('.')[0])
 
-    # --- JS/TS import/require patterns ---
-    # Handles: import ... from 'module', import 'module', require('module'), import('@scope/module')
     elif ext in ['.js', '.jsx', '.ts', '.tsx']:
         js_pattern = re.compile(r'(?:import|from|require)\s*\(?\s*[\'"]([^\'"]+)[\'"]')
         for match in js_pattern.finditer(content):
             module_name = match.group(1)
-            # Ignore relative paths
             if module_name and not module_name.startswith(('.', '/')):
-                # For scoped packages like @angular/core, add both 'angular' and 'core'
                 if module_name.startswith('@'):
                     parts = module_name.split('/')
-                    if len(parts) > 0: imports.add(parts[0][1:]) # Add scope name without '@'
-                    if len(parts) > 1: imports.add(parts[1])     # Add package name
+                    if len(parts) > 0: imports.add(parts[0][1:])
+                    if len(parts) > 1: imports.add(parts[1])
                 else:
-                    imports.add(module_name.split('/')[0]) # Add root package
+                    imports.add(module_name.split('/')[0])
     return imports
 
 def analyze_content_for_tags(content, imports):
     """Analyzes a block of code for action tags."""
     tags = set()
     for tag, definition in ACTION_DEFINITIONS.items():
-        # Check 1: Did we import a library associated with this tag?
         if not imports.isdisjoint(definition['imports']):
             tags.add(tag)
-        # Check 2: Does the code contain a regex pattern associated with this tag?
         if definition['regex'].search(content):
             tags.add(tag)
     return sorted(list(tags))
 
 
-# --- CRITICAL FIX: Improved Tagging Logic ---
 def parse_code_structure(file_path, content):
     """
     Main dispatcher for parsing. Selects parser, gets imports, and assigns tags robustly.
@@ -429,16 +446,11 @@ def parse_code_structure(file_path, content):
     elif ext in ['.js', '.jsx', '.ts', '.tsx']:
         structure = _parse_js_ts_structure(content)
 
-    # Use the new, reliable import parser
     all_imports = get_imports_from_content(content, file_path)
-    
-    # Analyze the entire file first to get a baseline set of tags from imports and top-level code
     file_level_tags = set(analyze_content_for_tags(content, all_imports))
 
-    # Analyze each function/class and add its specific tags to the file's overall tags
     for item in structure:
         item_code = extract_code_block(content, item['start_line'], item.get('end_line'), ext)
-        # We use all_imports here because an item might use a module imported at the top of the file
         item_tags = analyze_content_for_tags(item_code, all_imports)
         item['tags'] = item_tags
         file_level_tags.update(item_tags)
@@ -484,7 +496,6 @@ def extract_code_block(content, start_line, end_line=None, file_ext='.js'):
                 in_block = True
             if in_block and brace_count <= 0:
                 break
-            # Handle single-line arrow functions without braces
             if i == start_line_idx and '=>' in line and not line.strip().endswith('{'):
                 break
         return '\n'.join(block_lines)
@@ -537,7 +548,7 @@ def create_search_indexes():
                                 "dimensions": VOYAGE_EMBEDDING_DIMENSIONS,
                                 "similarity": "cosine"
                             },
-                           "session_id": {"type": "token"},
+                           "codebase_id": {"type": "token"},
                            "tags": {"type": "token"}
                         }
                     }
@@ -559,6 +570,7 @@ def create_search_indexes():
 def _index_one_snippet(snippet_data):
     """Worker function to process and index a single code snippet using a structured LLM call."""
     session_id = snippet_data['session_id']
+    codebase_id = snippet_data['codebase_id']
     with indexing_lock:
         SCAN_SESSIONS[session_id]['indexing_status']["progress"] += 1
 
@@ -566,13 +578,12 @@ def _index_one_snippet(snippet_data):
     item_name = snippet_data['item_name']
     code_to_process = snippet_data['code']
     static_tags = snippet_data.get('tags', [])
-    unique_id = f"{session_id}-{file_path}::{item_name}"
+    unique_id = f"{codebase_id}-{file_path}::{item_name}"
 
     try:
         if not code_to_process.strip():
             return "Skipped empty snippet"
 
-        # 1. Generate structured metadata with a single LLM call
         analysis_prompt = f"Analyze this code snippet from file `{file_path}`:\n\n```\n{code_to_process}\n```"
         messages = [{"role": "system", "content": CODE_METADATA_SYSTEM_PROMPT}, {"role": "user", "content": analysis_prompt}]
         llm_response = get_llm_response(client, messages, DEPLOYMENT, is_json=True)
@@ -582,12 +593,10 @@ def _index_one_snippet(snippet_data):
 
         try:
             llm_analysis = json.loads(llm_response['answer'])
-            # Validate essential keys
             if 'summary' not in llm_analysis or 'description' not in llm_analysis:
                 raise KeyError("Essential keys 'summary' or 'description' missing from LLM response.")
         except (json.JSONDecodeError, KeyError) as e:
             logging.error(f"Failed to parse or validate JSON from LLM for {unique_id}. Error: {e}. Response: {llm_response['answer']}")
-            # Fallback: create a basic analysis object to ensure indexing can proceed
             llm_analysis = {
                 "summary": "AI analysis failed. This is the raw code snippet.",
                 "description": f"Code snippet from {file_path} containing {item_name}.",
@@ -595,15 +604,12 @@ def _index_one_snippet(snippet_data):
                 "tags": [], "key_entities": []
             }
 
-        # 2. Generate embedding
         embedding = get_voyage_embedding(code_to_process)
-
-        # 3. Combine tags from static analysis and LLM analysis
         llm_tags = llm_analysis.get('tags', [])
         combined_tags = sorted(list(set(static_tags + llm_tags)))
 
-        # 4. Prepare and save the document
         document = {
+            "codebase_id": codebase_id,
             "session_id": session_id,
             "file_path": file_path,
             "item_name": item_name,
@@ -620,9 +626,9 @@ def _index_one_snippet(snippet_data):
         return "Failed to index"
 
 
-def process_and_index_snippets(files_data, session_id):
+def process_and_index_snippets(files_data, session_id, codebase_id):
     """
-    Finds all code snippets in the scanned files and indexes them in parallel for a given session.
+    Finds all code snippets in the provided files and indexes them in parallel.
     """
     if code_collection is None or client is None or voyage_client is None:
         msg = "Cannot start indexing: one or more clients (Mongo, OpenAI, Voyage) are not configured."
@@ -639,22 +645,22 @@ def process_and_index_snippets(files_data, session_id):
 
         for item in structure:
             code_block = extract_code_block(content, item['start_line'], item.get('end_line'), file_ext)
-            if not code_block.strip(): continue # Skip empty blocks
+            if not code_block.strip(): continue
             
             snippets_to_process.append({
                 "file_path": file_path, "item_name": item['name'], "code": code_block,
-                "session_id": session_id, "tags": item.get('tags', [])
+                "session_id": session_id, "codebase_id": codebase_id, "tags": item.get('tags', [])
             })
 
     if not snippets_to_process:
-        logging.warning(f"[{session_id}] No code snippets (functions/classes) found to index.")
-        SCAN_SESSIONS[session_id]['indexing_status'] = {"running": False, "progress": 0, "total": 0, "message": "No snippets found"}
+        logging.warning(f"[{session_id}] No new or modified code snippets found to index.")
+        SCAN_SESSIONS[session_id]['indexing_status'] = {"running": False, "progress": 0, "total": 0, "message": "No changes to index"}
         return
 
     SCAN_SESSIONS[session_id]['indexing_status'] = {
-        "running": True, "progress": 0, "total": len(snippets_to_process), "message": "Indexing in progress..."
+        "running": True, "progress": 0, "total": len(snippets_to_process), "message": "Indexing changes..."
     }
-    logging.info(f"[{session_id}] Found {len(snippets_to_process)} snippets. Starting parallel indexing...")
+    logging.info(f"[{session_id}] Found {len(snippets_to_process)} new/modified snippets. Starting parallel indexing...")
 
     try:
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
@@ -674,45 +680,107 @@ def process_and_index_snippets(files_data, session_id):
         SCAN_SESSIONS[session_id]['indexing_status']["running"] = False
 
 
+def delete_indexed_files(codebase_id, file_paths):
+    """Deletes all snippets associated with a list of file paths for a codebase."""
+    if not file_paths or codebase_state_collection is None:
+        return
+    try:
+        code_collection.delete_many({
+            "codebase_id": codebase_id,
+            "file_path": {"$in": file_paths}
+        })
+        logging.info(f"Deleted snippets for {len(file_paths)} files from codebase {codebase_id}")
+    except Exception as e:
+        logging.error(f"Failed to delete indexed files for codebase {codebase_id}: {e}")
+
+
 def background_scan_and_index(session_id, path_or_url):
-    """The main background worker function."""
+    """
+    The main background worker. Clones/finds the repo, detects changes against the stored
+    state, and surgically updates the index.
+    """
     scan_path = None
     is_temp_dir = False
     session = SCAN_SESSIONS.get(session_id)
-    if not session:
-        logging.error(f"Session {session_id} not found for background worker.")
-        return
+    if not session: return
 
     try:
+        codebase_id = generate_codebase_id(path_or_url)
+        session['codebase_id'] = codebase_id
+        logging.info(f"[{session_id}] Processing codebase ID: {codebase_id}")
+
         repo_info = parse_github_input(path_or_url)
         if repo_info:
             session['status'] = 'cloning'
             session['message'] = f"Cloning {repo_info['name']}..."
             scan_path = clone_repo_to_tempdir(repo_info["url"])
-            session['display_name'] = repo_info["name"]
             is_temp_dir = True
         elif os.path.isdir(path_or_url):
             scan_path = path_or_url
-            session['display_name'] = os.path.basename(os.path.abspath(path_or_url))
         else:
             raise ValueError(f"Input '{path_or_url}' is not a valid directory or a recognized GitHub repository format.")
-
+        
+        session['display_name'] = repo_info["name"] if repo_info else os.path.basename(os.path.abspath(scan_path))
+        
         session['status'] = 'scanning'
-        session['message'] = 'Scanning files...'
+        session['message'] = 'Detecting file changes...'
+
+        previous_state = {
+            doc['file_path']: doc['content_hash']
+            for doc in codebase_state_collection.find({"codebase_id": codebase_id})
+        }
+        logging.info(f"[{session_id}] Found {len(previous_state)} files in the last known state.")
+
         scan_directory(scan_path, session_id)
+        files_data_for_indexing = session.get('scanned_files_data', {})
+        
+        current_state = {
+            path: hashlib.sha256(data['content'].encode()).hexdigest()
+            for path, data in files_data_for_indexing.items()
+        }
 
-        if not session.get('scanned_files_data'):
-             raise FileNotFoundError("Scan complete, but no relevant code files were found.")
+        previous_paths = set(previous_state.keys())
+        current_paths = set(current_state.keys())
 
-        session['status'] = 'indexing'
-        session['message'] = 'Scan complete. Starting indexing...'
+        new_files = list(current_paths - previous_paths)
+        deleted_files = list(previous_paths - current_paths)
+        modified_files = [
+            path for path in previous_paths.intersection(current_paths)
+            if previous_state[path] != current_state[path]
+        ]
+
+        logging.info(f"[{session_id}] Change detection: {len(new_files)} new, {len(modified_files)} modified, {len(deleted_files)} deleted.")
+
         session['scan_complete'] = True
+        
+        files_to_index_paths = new_files + modified_files
+        if not files_to_index_paths and not deleted_files:
+            session['status'] = 'complete'
+            session['message'] = 'Codebase is already up-to-date.'
+            logging.info(f"[{session_id}] No changes detected.")
+            return
 
-        process_and_index_snippets(session['scanned_files_data'].copy(), session_id)
+        if deleted_files:
+            delete_indexed_files(codebase_id, deleted_files)
+
+        if files_to_index_paths:
+            files_to_index_data = {path: files_data_for_indexing[path] for path in files_to_index_paths}
+            process_and_index_snippets(files_to_index_data, session_id, codebase_id)
+        
+        logging.info(f"[{session_id}] Updating codebase state in database...")
+        codebase_state_collection.delete_many({"codebase_id": codebase_id})
+        if current_state:
+            docs_to_insert = [
+                {"codebase_id": codebase_id, "file_path": path, "content_hash": hash_val}
+                for path, hash_val in current_state.items()
+            ]
+            codebase_state_collection.insert_many(docs_to_insert)
+
+        while session.get('indexing_status', {}).get('running', False):
+            time.sleep(1)
 
         session['status'] = 'complete'
         session['message'] = 'All processes complete.'
-        logging.info(f"[{session_id}] background worker finished successfully.")
 
     except Exception as e:
         logging.error(f"[{session_id}] Error in background worker: {e}")
@@ -773,7 +841,8 @@ def scan():
         "scanned_files_data": {},
         "indexing_status": {},
         "error_message": None,
-        "display_name": ""
+        "display_name": "",
+        "codebase_id": None
     }
 
     if len(SCAN_SESSIONS) > 10:
@@ -871,6 +940,7 @@ def summarize():
     if not session or 'scanned_files_data' not in session:
         return jsonify({"error": "Session data not found."}), 404
     
+    codebase_id = session.get('codebase_id')
     scanned_files_data = session['scanned_files_data']
     if file_path not in scanned_files_data:
         return jsonify({"error": "File not found in scanned data."}), 404
@@ -880,7 +950,7 @@ def summarize():
             return jsonify({"error": "Database not available to fetch snippet summary."}), 503
 
         document = code_collection.find_one({
-            "session_id": session_id,
+            "codebase_id": codebase_id,
             "file_path": file_path,
             "item_name": item_name
         })
@@ -993,7 +1063,7 @@ def chat():
 
 @app.route('/search', methods=['POST'])
 def search():
-    """Performs hybrid search on the indexed code snippets, scoped to the session_id."""
+    """Performs hybrid search on the indexed code snippets, scoped to the codebase_id."""
     if not voyage_client or code_collection is None:
         return jsonify({"error": "Search is not available. Check Voyage/MongoDB configuration."}), 500
 
@@ -1003,6 +1073,13 @@ def search():
 
     if not query or not session_id:
         return jsonify({"error": "Search query and sessionId are required."}), 400
+    
+    if session_id not in SCAN_SESSIONS:
+        return jsonify({"error": "Invalid or expired session. Please scan a repository again."}), 400
+    
+    codebase_id = SCAN_SESSIONS[session_id].get('codebase_id')
+    if not codebase_id:
+        return jsonify({"error": "Could not determine codebase for this session."}), 400
 
     try:
         query_embedding = get_voyage_embedding(query)
@@ -1020,7 +1097,7 @@ def search():
                                         "queryVector": query_embedding,
                                         "numCandidates": 100,
                                         "limit": 10,
-                                        "filter": { "session_id": { "$eq": session_id } }
+                                        "filter": { "codebase_id": { "$eq": codebase_id } }
                                     }
                                 }
                             ],
@@ -1038,7 +1115,7 @@ def search():
                                                     ]
                                                 }
                                             }],
-                                            "filter": [{"term": {"path": "session_id", "query": session_id}}]
+                                            "filter": [{"term": {"path": "codebase_id", "query": codebase_id}}]
                                         }
                                     }
                                 },
@@ -1087,17 +1164,17 @@ if __name__ == '__main__':
         mongo_client.admin.command('ping')
         logging.info("MongoDB client connected successfully.")
 
-        db, code_collection = setup_database_and_collection(mongo_client, DB_NAME, COLLECTION_NAME)
+        db, code_collection, codebase_state_collection = setup_database_and_collection(mongo_client, DB_NAME, COLLECTION_NAME)
 
-        if code_collection is not None:
+        if code_collection is not None and codebase_state_collection is not None:
             create_search_indexes()
             atexit.register(lambda: mongo_client.close())
         else:
-            logging.error("Failed to set up MongoDB collection. Search functionality will be disabled.")
+            logging.error("Failed to set up MongoDB collections. Search functionality will be disabled.")
 
     except (ConnectionFailure, ValueError) as e:
         logging.error(f"Error initializing MongoDB client: {e}")
-        mongo_client, db, code_collection = None, None, None
+        mongo_client, db, code_collection, codebase_state_collection = None, None, None, None
 
     host = os.getenv('FLASK_HOST', '127.0.0.1')
     port = int(os.getenv('FLASK_PORT', 5000))
