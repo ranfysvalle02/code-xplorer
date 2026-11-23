@@ -64,7 +64,7 @@ Five design decisions carry all the weight:
 
 ## 4. The receipts
 
-I ran this on a deliberately insecure demo repo — hardcoded admin password, MD5 hashing, SQL injection via string formatting, `subprocess` with `shell=True`, a password reset that prints `"changeme123"`.
+I ran this on a deliberately insecure demo repo — hardcoded admin password, MD5 hashing, SQL injection via string formatting, `subprocess` with `shell=True`, a password reset that prints `"changeme123"`. That repo ships with the project ([demo/](https://github.com/ranfysvalle02/code-xplorer/tree/main/demo), with a ground-truth checklist and a one-command setup for git history), so you can reproduce the run and score recall yourself instead of taking my word for it.
 
 The AI-planned, six-step variant of this pipeline (the planner also led with a `git log` step and paired it with its own `extract`, so commit history got the same evidence treatment as the code) ran **entirely on local models (Llama 3.1 8B — free, on a laptop)** in about **12 seconds of LLM time**, and the final report contained findings like:
 

@@ -91,6 +91,16 @@ models, or the raw JSON spec itself. See
 [coding-agents-blog.md](coding-agents-blog.md) for the full story on why this
 architecture beats one-shot agents on both cost and trust.
 
+#### Validate it yourself with the bundled demo
+
+The repo ships with [demo/](demo/) — a tiny, deliberately insecure two-file app
+with **5 planted vulnerabilities** (hardcoded password, MD5 hashing, SQL
+injection, `shell=True` injection, fixed reset password). Scan `demo/` (or run
+`./demo/setup.sh` to get a copy with git history for the git-forensic steps),
+run the **Security review** pipeline, and score the report against the ground
+truth table in [demo/README.md](demo/README.md). Every finding must cite a file
+and a verbatim quote you can check — recall becomes a number, not a vibe.
+
 ---
 
 We've all been there: starting a new job or joining a new team, you're faced with a sprawling, unfamiliar codebase. The `README` is a month out of date, and your only guide is the `git blame` history. Where do you even begin? The traditional approach involves hours of painstaking detective work, grepping for a `main` function and slowly piecing together the puzzle.
