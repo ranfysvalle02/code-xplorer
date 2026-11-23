@@ -3697,6 +3697,8 @@
         let pipeApproaches = [];
         let pipeRunning = false;
         let pipeJsonMode = false;
+        let pipeLastRunId = null; // run whose trail the step re-runs stitch into
+        let pipeLastTrail = {};   // step id -> latest audit entry (client-side cache)
 
         function pipeModelOptions(selected, emptyLabel) {
           let html = `<option value="">${escapeHtml(emptyLabel)}</option>`;
@@ -4060,6 +4062,8 @@
           pipeUI.runLog.innerHTML = "";
           pipeUI.final.classList.add("hidden");
           pipeUI.final.innerHTML = "";
+          pipeLastRunId = null;
+          pipeLastTrail = {};
         }
 
         function pipePretty(v) {
@@ -4107,38 +4111,69 @@
                   <span class="text-xs text-gray-500">(${escapeHtml(
                     s.type
                   )}${model})</span>
+                  <span class="pipe-stale-note hidden text-xs text-yellow-400 ml-1">stale — upstream changed</span>
                 </span>
-                <span class="pipe-run-duration text-xs text-gray-500"></span>
+                <span class="flex items-center gap-2">
+                  <span class="pipe-run-duration text-xs text-gray-500"></span>
+                  <button class="pipe-rerun-btn text-xs text-gray-500 hover:text-green-400 transition-colors" data-step="${escapeHtml(
+                    s.id
+                  )}" title="Re-run only this step using cached upstream outputs"><i class="fa-solid fa-rotate-right"></i></button>
+                </span>
               </div>
               <div class="pipe-run-audit"></div>
             </div>`;
         }
 
+        function markPipeStepStale(stepId) {
+          const row = document.getElementById(`pipe-run-step-${stepId}`);
+          if (!row) return;
+          row.querySelector(".pipe-run-status").innerHTML =
+            '<i class="fa-solid fa-circle-exclamation text-yellow-400"></i>';
+          row.querySelector(".pipe-stale-note")?.classList.remove("hidden");
+          if (pipeLastTrail[stepId]) pipeLastTrail[stepId].status = "stale";
+        }
+
         function handlePipeRunEvent(ev) {
           if (ev.type === "pipeline_start") {
+            pipeLastRunId = ev.run_id;
+            pipeLastTrail = {};
             pipeUI.runLog.innerHTML =
               `<div class="text-xs text-gray-400 font-mono">run ${escapeHtml(
                 ev.run_id
               )}</div>` + ev.steps.map(pipeRunStepRow).join("");
           } else if (ev.type === "step_start") {
             const row = document.getElementById(`pipe-run-step-${ev.id}`);
-            if (row)
+            if (row) {
               row.querySelector(".pipe-run-status").innerHTML =
                 '<i class="fa-solid fa-spinner animate-spin text-green-400"></i>';
+              row.querySelector(".pipe-stale-note")?.classList.add("hidden");
+            }
           } else if (ev.type === "step_done") {
             const a = ev.audit;
+            pipeLastTrail[a.id] = a;
             const row = document.getElementById(`pipe-run-step-${a.id}`);
             if (row) {
               row.querySelector(".pipe-run-status").innerHTML =
                 a.status === "ok"
                   ? '<i class="fa-solid fa-circle-check text-green-500"></i>'
+                  : a.status === "stale"
+                  ? '<i class="fa-solid fa-circle-exclamation text-yellow-400"></i>'
                   : '<i class="fa-solid fa-circle-xmark text-red-500"></i>';
+              if (a.status === "stale")
+                row.querySelector(".pipe-stale-note")?.classList.remove("hidden");
               row.querySelector(".pipe-run-duration").textContent = `${(
                 (a.duration_ms || 0) / 1000
               ).toFixed(1)}s`;
               row.querySelector(".pipe-run-audit").innerHTML =
                 pipeAuditDetails(a);
             }
+          } else if (ev.type === "step_run_done") {
+            (ev.stale || []).forEach(markPipeStepStale);
+            if (ev.final) {
+              pipeUI.final.innerHTML = marked.parse(String(ev.final));
+              pipeUI.final.classList.remove("hidden");
+            }
+            loadPipeRuns();
           } else if (ev.type === "pipeline_done") {
             if (ev.final) {
               pipeUI.final.innerHTML = marked.parse(ev.final);
@@ -4150,6 +4185,27 @@
               "beforeend",
               `<div class="text-red-400 text-sm">${escapeHtml(ev.error)}</div>`
             );
+          }
+        }
+
+        async function streamPipeEvents(res) {
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const parts = buffer.split("\n\n");
+            buffer = parts.pop();
+            for (const part of parts) {
+              if (!part.startsWith("data:")) continue;
+              try {
+                handlePipeRunEvent(JSON.parse(part.slice(5).trim()));
+              } catch (err) {
+                console.error("Bad pipeline event", err);
+              }
+            }
           }
         }
 
@@ -4178,24 +4234,7 @@
               const data = await res.json();
               throw new Error(data.error || "Run failed to start.");
             }
-            const reader = res.body.getReader();
-            const decoder = new TextDecoder();
-            let buffer = "";
-            while (true) {
-              const { value, done } = await reader.read();
-              if (done) break;
-              buffer += decoder.decode(value, { stream: true });
-              const parts = buffer.split("\n\n");
-              buffer = parts.pop();
-              for (const part of parts) {
-                if (!part.startsWith("data:")) continue;
-                try {
-                  handlePipeRunEvent(JSON.parse(part.slice(5).trim()));
-                } catch (err) {
-                  console.error("Bad pipeline event", err);
-                }
-              }
-            }
+            await streamPipeEvents(res);
           } catch (e) {
             pipeUI.runLog.insertAdjacentHTML(
               "beforeend",
@@ -4205,6 +4244,48 @@
             pipeRunning = false;
             pipeUI.runBtn.disabled = false;
           }
+        });
+
+        // --------------------------------------- single-step re-run + stitch
+        async function rerunPipeStep(stepId) {
+          if (pipeRunning) return;
+          if (!pipeSpec || !(pipeSpec.steps || []).length) return;
+          if (pipeJsonMode) pipeUI.jsonToggle.click(); // apply pending JSON edits
+          pipeRunning = true;
+          pipeUI.runBtn.disabled = true;
+          try {
+            const res = await fetch("/pipelines/run_step", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                sessionId: currentSessionId,
+                spec: pipeSpec,
+                stepId: stepId,
+                runId: pipeLastRunId,
+                trail: Object.values(pipeLastTrail), // fallback if the run store is unavailable
+                ask: pipeUI.ask.value.trim(),
+              }),
+            });
+            if (!res.ok) {
+              const data = await res.json();
+              throw new Error(data.error || "Step re-run failed to start.");
+            }
+            await streamPipeEvents(res);
+          } catch (e) {
+            pipeUI.runLog.insertAdjacentHTML(
+              "beforeend",
+              `<div class="text-red-400 text-sm">${escapeHtml(e.message)}</div>`
+            );
+          } finally {
+            pipeRunning = false;
+            pipeUI.runBtn.disabled = false;
+          }
+        }
+
+        pipeUI.runLog.addEventListener("click", (e) => {
+          const btn = e.target.closest(".pipe-rerun-btn");
+          if (!btn) return;
+          rerunPipeStep(btn.dataset.step);
         });
 
         // ------------------------------------------------ run history
@@ -4261,6 +4342,10 @@
               '<i class="fa-solid fa-code mr-1"></i>JSON';
             renderPipeSteps();
             clearPipeRunView();
+            pipeLastRunId = run._id;
+            (run.trail || []).forEach((a) => {
+              if (a && a.id) pipeLastTrail[a.id] = a;
+            });
             pipeUI.runLog.innerHTML =
               `<div class="text-xs text-gray-400 font-mono">saved run ${escapeHtml(
                 run._id
@@ -4283,7 +4368,7 @@
               pipeUI.final.classList.remove("hidden");
             }
             pipeUI.planStatus.textContent =
-              "Loaded a saved run: inspect each step below, tweak the spec, and re-run.";
+              "Loaded a saved run: inspect each step below, tweak the spec, and re-run — or use ↻ on a step to re-run just that step from cached inputs.";
           } catch (e) {
             pipeUI.planStatus.innerHTML = `<span class="text-red-400">${escapeHtml(
               e.message

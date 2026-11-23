@@ -393,6 +393,26 @@ def _extract_json(raw):
     raise json.JSONDecodeError("No JSON found", text, 0)
 
 
+def _stale_dependents(spec, step_id):
+    """Step ids after `step_id` (in spec order) that transitively depend on it.
+
+    Steps with no explicit inputs implicitly consume everything computed before
+    them (see `_resolve_inputs`), so they are treated as dependents too.
+    """
+    ids = [s.id for s in spec.steps]
+    if step_id not in ids:
+        return []
+    target_i = ids.index(step_id)
+    stale = set()
+    for i, s in enumerate(spec.steps):
+        if i <= target_i:
+            continue
+        deps = [r for r in (s.inputs or []) if r != "ask"]
+        if not deps or step_id in deps or any(d in stale for d in deps):
+            stale.add(s.id)
+    return [sid for sid in ids if sid in stale]
+
+
 class PipelineRunner:
     def __init__(self, registry, coll, codebase_id, repo_path=None, has_git=False,
                  runs_collection=None):
@@ -431,13 +451,14 @@ class PipelineRunner:
                 "model": used_model, "status": "ok",
                 "started_at": dt.datetime.utcnow().isoformat() + "Z",
                 "input_preview": None, "prompt": None,
-                "output": None, "raw_output": None, "error": None,
+                "output": None, "text_output": None, "raw_output": None, "error": None,
             }
             try:
                 out, text_out, prompt = self._exec(step, results, text_results)
                 results[step.id] = out
                 text_results[step.id] = text_out
                 audit["output"] = out
+                audit["text_output"] = _clip(text_out)
                 audit["prompt"] = prompt
                 audit["input_preview"] = _clip(self._resolve_inputs(step, text_results), 2000)
                 if step.type == "report":
@@ -469,6 +490,98 @@ class PipelineRunner:
 
         yield {"type": "pipeline_done", "run_id": run_id, "status": status,
                "final": final_output}
+
+    def run_step(self, spec_dict, step_id, ask="", run_id=None, prior_trail=None):
+        """Re-run a single step against the cached outputs of its upstream steps,
+        stitch the new audit entry into the saved run's trail, and mark
+        downstream dependents stale (they keep their old output until re-run)."""
+        try:
+            spec = PipelineSpec(**spec_dict)
+        except Exception as e:
+            yield {"type": "error", "error": f"Invalid pipeline spec: {e}"}
+            return
+        _normalize_spec(spec)
+
+        step = next((s for s in spec.steps if s.id == step_id), None)
+        if step is None:
+            yield {"type": "error", "error": f"Step '{step_id}' not found in spec."}
+            return
+
+        # Prefer the persisted trail; fall back to one supplied by the client.
+        trail = None
+        run_doc = None
+        if run_id and self.runs_collection is not None:
+            run_doc = self.runs_collection.find_one({"_id": run_id})
+            if run_doc:
+                trail = run_doc.get("trail")
+        if trail is None:
+            trail = prior_trail or []
+        trail_by_id = {a.get("id"): a for a in trail if isinstance(a, dict)}
+
+        # Seed upstream context from cached audit entries (spec order).
+        results = {}
+        text_results = {"__ask__": ask or ""}
+        for s in spec.steps:
+            if s.id == step_id:
+                break
+            a = trail_by_id.get(s.id)
+            if not a or a.get("output") is None:
+                continue
+            results[s.id] = a.get("output")
+            text_results[s.id] = a.get("text_output") or _clip(a.get("output"))
+
+        yield {"type": "step_start", "id": step.id, "title": step.title, "type_": step.type}
+        started = time.time()
+        used_model = step.model or default_model_for(step.type, self.registry)
+        audit = {
+            "id": step.id, "title": step.title, "type": step.type,
+            "model": used_model, "status": "ok",
+            "started_at": dt.datetime.utcnow().isoformat() + "Z",
+            "input_preview": None, "prompt": None,
+            "output": None, "text_output": None, "raw_output": None, "error": None,
+        }
+        try:
+            out, text_out, prompt = self._exec(step, results, text_results)
+            audit["output"] = out
+            audit["text_output"] = _clip(text_out)
+            audit["prompt"] = prompt
+            audit["input_preview"] = _clip(self._resolve_inputs(step, text_results), 2000)
+        except Exception as e:
+            audit["status"] = "error"
+            audit["error"] = str(e)
+            logger.warning(f"Pipeline step '{step.id}' re-run failed: {e}")
+        audit["duration_ms"] = int((time.time() - started) * 1000)
+        yield {"type": "step_done", "audit": audit}
+
+        # Stitch: replace the entry in the trail, flag dependents as stale.
+        stale_ids = _stale_dependents(spec, step_id)
+        trail_by_id[step.id] = audit
+        for sid in stale_ids:
+            entry = trail_by_id.get(sid)
+            if entry and entry.get("status") == "ok":
+                entry["status"] = "stale"
+        new_trail = [trail_by_id[s.id] for s in spec.steps if s.id in trail_by_id]
+
+        status = "error" if any(a.get("status") == "error" for a in new_trail) else "ok"
+        final_output = ""
+        for s in spec.steps:
+            a = trail_by_id.get(s.id)
+            if a and s.type == "report" and a.get("status") in ("ok", "stale") and a.get("output"):
+                final_output = a["output"] if isinstance(a["output"], str) else (a.get("text_output") or "")
+
+        if run_doc is not None and self.runs_collection is not None:
+            try:
+                self.runs_collection.update_one(
+                    {"_id": run_id},
+                    {"$set": {"trail": new_trail, "status": status,
+                              "final_output": final_output,
+                              "updated_at": dt.datetime.utcnow().isoformat() + "Z"}})
+            except Exception as e:
+                logger.warning(f"Could not persist re-run step: {e}")
+
+        yield {"type": "step_run_done", "run_id": run_id, "status": status,
+               "stale": stale_ids, "final": final_output}
+
 
     # --------------------------------------------------------------- helpers
     def _resolve_inputs(self, step, text_results):

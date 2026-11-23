@@ -887,6 +887,52 @@ def pipelines_run():
                     headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
 
 
+@app.route('/pipelines/run_step', methods=['POST'])
+def pipelines_run_step():
+    data = request.get_json() or {}
+    session_id = data.get('sessionId')
+    spec = data.get('spec')
+    step_id = data.get('stepId')
+    ask = data.get('ask', '')
+    run_id = data.get('runId')
+    prior_trail = data.get('trail')
+    if not session_id or session_id not in SCAN_SESSIONS:
+        return jsonify({"error": "Invalid or expired session. Please scan a repository again."}), 400
+    if not spec or not spec.get('steps'):
+        return jsonify({"error": "A pipeline spec with at least one step is required."}), 400
+    if not step_id:
+        return jsonify({"error": "A 'stepId' is required."}), 400
+
+    session = SCAN_SESSIONS[session_id]
+    codebase_id = session.get('codebase_id')
+    target = next((s for s in spec.get('steps', []) if s.get('id') == step_id), None)
+    # Only pay for repo resolution (possible clone) when the step needs git.
+    if target and target.get('type') == 'git':
+        repo_path, has_git, cleanup = resolve_repo_for_session(session)
+    else:
+        repo_path, has_git, cleanup = None, False, None
+
+    runner = pipe.PipelineRunner(
+        registry, code_collection, codebase_id,
+        repo_path=repo_path, has_git=has_git,
+        runs_collection=pipeline_runs_collection)
+
+    def generate():
+        try:
+            for event in runner.run_step(spec, step_id, ask=ask, run_id=run_id,
+                                         prior_trail=prior_trail):
+                yield f"data: {json.dumps(event, default=str)}\n\n"
+        except Exception as e:
+            logging.error(f"Pipeline step re-run failed: {e}")
+            yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+        finally:
+            if cleanup:
+                cleanup()
+
+    return Response(stream_with_context(generate()), mimetype='text/event-stream',
+                    headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
+
+
 @app.route('/pipelines/runs')
 def pipelines_runs():
     if pipeline_runs_collection is None:

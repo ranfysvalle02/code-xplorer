@@ -85,6 +85,13 @@ into a JSON pipeline of small, inspectable steps:
   prompt, inputs, raw output, timing, and status. Runs are persisted; load any
   past run to inspect each step, tweak the spec, and run it again. When
   something is wrong you can see *which step* failed — and fix just that step.
+- **Single-step re-run and stitching.** Each step in a run has a ↻ button that
+  re-executes *only that step* against the cached outputs of its upstream steps
+  — no re-paying for the steps that were fine. The new result is stitched back
+  into the saved run's trail, and downstream steps that depend on it are marked
+  **stale** (keeping their old output) until you re-run them too. Identify where
+  things went wrong, fix the step's instructions/model/params, regenerate, then
+  refresh the stale steps.
 
 Everything is editable before running: step order, instructions, queries,
 models, or the raw JSON spec itself. See
