@@ -125,7 +125,8 @@ class ModelRegistry:
         self.ollama = None
         if ollama is not None:
             try:
-                self.ollama = ollama.Client(host=config.ollama_host)
+                # A wedged request must raise (and be retried), never hang forever.
+                self.ollama = ollama.Client(host=config.ollama_host, timeout=180.0)
             except Exception as e:  # pragma: no cover
                 logger.error(f"Could not create Ollama client: {e}")
 

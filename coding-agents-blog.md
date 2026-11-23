@@ -78,6 +78,8 @@ Every finding cites a file and a verbatim quote that either exists in the code o
 
 An 8B model did not get smarter than a frontier model. The *architecture* made its job small enough that an 8B model was sufficient, and made its mistakes cheap to find. That's the whole trick. A wrong label on a grounded fact costs a human three seconds to spot and one step to re-run — not an entire frontier-priced session.
 
+Is the demo repo a toy? Completely — and deliberately, for the same reason the call-transcripts project uses synthetic calls: with planted ground truth you can score recall exactly instead of eyeballing vibes. A toy repo proves the *mechanism* (decomposition, grounding, per-step models, the audit trail), not real-world recall on a million-line monorepo — that's a claim only your own repo can settle, which is the point of shipping the tool instead of a benchmark table. On bigger codebases the deterministic steps are the ones doing the scaling work (hybrid search and git don't care how large the repo is; they only ever hand the model a bounded page of evidence), and when recall does fall short, the trail shows you *which search query* missed — so you fix a query, not a prompt. For heavier lifting, swap `voyage-code-3` embeddings and a frontier model into exactly the steps that need them — the point was never "local only," it's *your choice, per step*.
+
 ## 5. What this does *not* solve
 
 Honesty section, same as always:
