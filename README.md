@@ -1,6 +1,6 @@
 # Trustworthy AI Code Analysis
 
-![](cw2.png)
+![](code-xplr.png)
 
 ## Quickstart (local-first, free)
 
