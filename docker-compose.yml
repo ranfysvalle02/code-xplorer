@@ -1,0 +1,28 @@
+# Local-first MongoDB Atlas for code-xplorer.
+# `mongodb-atlas-local` bundles mongod + Atlas Search (mongot), so it supports
+# $vectorSearch and the $rankFusion hybrid-search operator used by this app.
+#
+# Start it with:  docker compose up -d
+# Connect with:   mongodb://localhost:27018/?directConnection=true
+#
+# Host port 27018 is used (instead of 27017) so this won't collide with any
+# other MongoDB you may already be running locally.
+
+services:
+  mongodb:
+    image: mongodb/mongodb-atlas-local:8.3
+    container_name: code-xplorer-mongo
+    ports:
+      - "27018:27017"
+    volumes:
+      - code-xplorer-mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 40s
+    restart: unless-stopped
+
+volumes:
+  code-xplorer-mongo-data:

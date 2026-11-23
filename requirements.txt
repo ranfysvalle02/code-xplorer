@@ -1,0 +1,16 @@
+# Core web app
+flask>=3.0
+python-dotenv>=1.0
+pymongo>=4.8
+
+# Local-first AI (default): Ollama for chat + embeddings
+ollama>=0.5
+
+# Structured-output validation for the indexing/agent pipelines
+pydantic>=2.7
+
+# Optional upgrade: Voyage AI embeddings + reranker (enabled when VOYAGE_API_KEY is set)
+voyageai>=0.3
+
+# Optional provider: Azure OpenAI (used only if the AZURE_* vars are set)
+openai>=1.40

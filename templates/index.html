@@ -427,6 +427,23 @@
           ></div>
         </div>
         <button
+          id="settings-btn"
+          title="Models & providers"
+          class="flex items-center space-x-2 px-3 py-2 text-sm font-semibold rounded-md mongodb-dark-bg border mongodb-border hover:bg-gray-700 transition-colors"
+        >
+          <i class="fa-solid fa-sliders" style="color: #00ed64"></i>
+          <span id="settings-btn-label" class="hidden sm:inline">Models</span>
+        </button>
+        <button
+          id="pipelines-btn"
+          title="Auditable AI pipelines: plan, edit, run, audit"
+          class="flex items-center space-x-2 px-3 py-2 text-sm font-semibold rounded-md mongodb-dark-bg border mongodb-border hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled
+        >
+          <i class="fa-solid fa-diagram-project" style="color: #00ed64"></i>
+          <span class="hidden sm:inline">Pipelines</span>
+        </button>
+        <button
           id="new-scan-btn"
           class="hidden px-3 py-2 text-sm font-semibold rounded-md mongodb-dark-bg border mongodb-border hover:bg-gray-700 transition-colors"
         >
@@ -449,6 +466,98 @@
         </div>
       </div>
     </header>
+
+    <div
+      id="health-banner"
+      class="hidden items-center justify-between px-4 py-2 text-sm border-b mongodb-border"
+    ></div>
+
+    <!-- Settings / Models modal -->
+    <div
+      id="settings-modal"
+      class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+    >
+      <div
+        class="mongodb-dark-bg border mongodb-border rounded-lg w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto"
+      >
+        <div class="flex justify-between items-center">
+          <h3 class="text-lg font-semibold">
+            <i class="fa-solid fa-sliders mr-2" style="color: #00ed64"></i>Models
+            &amp; Providers
+          </h3>
+          <button
+            id="close-settings-btn"
+            class="text-gray-400 hover:text-white p-1"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div
+          id="settings-health"
+          class="text-xs space-y-1 p-3 rounded-md bg-gray-900/60 border mongodb-border"
+        >
+          Loading provider status...
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold mb-1"
+            >Embedding model
+            <span class="text-xs font-normal text-gray-400"
+              >(used for indexing &amp; search)</span
+            ></label
+          >
+          <select
+            id="embedding-select"
+            class="w-full p-2 rounded-md bg-gray-800 border mongodb-border focus:outline-none focus:ring-2 focus:ring-green-500"
+          ></select>
+          <p id="embedding-note" class="text-xs text-gray-400 mt-1"></p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold mb-1"
+            >Answer model
+            <span class="text-xs font-normal text-gray-400"
+              >(writes &amp; verifies answers)</span
+            ></label
+          >
+          <select
+            id="llm-select"
+            class="w-full p-2 rounded-md bg-gray-800 border mongodb-border focus:outline-none focus:ring-2 focus:ring-green-500"
+          ></select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold mb-1"
+            >Fast model
+            <span class="text-xs font-normal text-gray-400"
+              >(indexing, planning, grading)</span
+            ></label
+          >
+          <select
+            id="fast-llm-select"
+            class="w-full p-2 rounded-md bg-gray-800 border mongodb-border focus:outline-none focus:ring-2 focus:ring-green-500"
+          ></select>
+        </div>
+
+        <div id="settings-status" class="text-xs text-gray-400 min-h-[1rem]"></div>
+
+        <div class="flex justify-end space-x-2">
+          <button
+            id="refresh-models-btn"
+            class="px-3 py-2 text-sm rounded-md mongodb-dark-bg border mongodb-border hover:bg-gray-700"
+          >
+            <i class="fa-solid fa-rotate mr-1"></i>Refresh
+          </button>
+          <button
+            id="apply-models-btn"
+            class="px-4 py-2 text-sm font-semibold rounded-md mongodb-green-bg mongodb-green-bg-hover active:scale-95"
+          >
+            Apply
+          </button>
+        </div>
+      </div>
+    </div>
 
     <main class="flex-1 flex flex-col md:flex-row overflow-hidden">
       <aside
@@ -1069,6 +1178,165 @@
       </div>
     </div>
 
+    <!-- Pipelines modal -->
+    <div
+      id="pipelines-modal"
+      class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
+    >
+      <div
+        class="mongodb-dark-bg border mongodb-border rounded-lg w-full max-w-7xl h-[92vh] flex flex-col"
+      >
+        <div class="flex justify-between items-center p-4 border-b mongodb-border">
+          <h2 class="text-lg font-semibold">
+            <i class="fa-solid fa-diagram-project mr-2" style="color: #00ed64"></i
+            >Auditable Pipelines
+          </h2>
+          <div class="flex items-center space-x-3">
+            <span class="text-xs text-gray-400 hidden md:inline"
+              >Break an ask into small steps. Every step records its model,
+              prompt, inputs &amp; output — no black box.</span
+            >
+            <button
+              id="close-pipelines-btn"
+              class="text-gray-400 hover:text-white text-2xl"
+            >
+              &times;
+            </button>
+          </div>
+        </div>
+        <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
+          <!-- Left: ask, planning controls, templates, history -->
+          <div
+            class="w-full md:w-1/3 border-b md:border-b-0 md:border-r mongodb-border p-4 overflow-y-auto space-y-4"
+          >
+            <div>
+              <label class="block text-sm font-semibold mb-1">Ask</label>
+              <textarea
+                id="pipe-ask"
+                rows="3"
+                placeholder='e.g. "Scan this repo and generate a security report"'
+                class="w-full p-2 rounded-md bg-gray-800 border mongodb-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              ></textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1 text-gray-300"
+                >Approach
+                <span class="text-gray-500 font-normal"
+                  >(how the AI breaks it down)</span
+                ></label
+              >
+              <select
+                id="pipe-approach"
+                class="w-full p-2 rounded-md bg-gray-800 border mongodb-border text-sm"
+              ></select>
+              <p id="pipe-approach-note" class="text-xs text-gray-500 mt-1"></p>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1 text-gray-300"
+                >Planner model</label
+              >
+              <select
+                id="pipe-planner-model"
+                class="w-full p-2 rounded-md bg-gray-800 border mongodb-border text-sm"
+              ></select>
+            </div>
+            <button
+              id="pipe-plan-btn"
+              class="w-full px-4 py-2 font-semibold rounded-md mongodb-green-bg mongodb-green-bg-hover active:scale-95 text-sm disabled:opacity-50"
+            >
+              <i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Plan pipeline
+              with AI
+            </button>
+            <p id="pipe-plan-status" class="text-xs text-gray-400 min-h-[1rem]"></p>
+            <div>
+              <h3 class="text-sm font-semibold mb-2">Start from a template</h3>
+              <div id="pipe-templates" class="space-y-1"></div>
+            </div>
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="text-sm font-semibold">Past runs</h3>
+                <button
+                  id="pipe-refresh-runs"
+                  class="text-xs text-gray-400 hover:text-white"
+                >
+                  <i class="fa-solid fa-rotate mr-1"></i>Refresh
+                </button>
+              </div>
+              <div id="pipe-runs" class="space-y-1 text-xs"></div>
+            </div>
+          </div>
+          <!-- Right: editable pipeline + run view -->
+          <div class="flex-1 flex flex-col overflow-hidden">
+            <div
+              class="p-4 border-b mongodb-border flex items-center justify-between space-x-2"
+            >
+              <input
+                id="pipe-name"
+                class="flex-1 bg-transparent text-base font-semibold focus:outline-none border-b border-transparent focus:border-green-500 min-w-0"
+                placeholder="Untitled pipeline"
+              />
+              <div class="flex items-center space-x-2 flex-shrink-0">
+                <button
+                  id="pipe-json-toggle"
+                  class="px-3 py-1.5 text-xs rounded-md mongodb-dark-bg border mongodb-border hover:bg-gray-700"
+                  title="Edit the raw JSON spec"
+                >
+                  <i class="fa-solid fa-code mr-1"></i>JSON
+                </button>
+                <button
+                  id="pipe-add-step"
+                  class="px-3 py-1.5 text-xs rounded-md mongodb-dark-bg border mongodb-border hover:bg-gray-700"
+                >
+                  <i class="fa-solid fa-plus mr-1"></i>Step
+                </button>
+                <button
+                  id="pipe-run-btn"
+                  class="px-4 py-1.5 text-sm font-semibold rounded-md mongodb-green-bg mongodb-green-bg-hover active:scale-95 disabled:opacity-50"
+                >
+                  <i class="fa-solid fa-play mr-1"></i>Run
+                </button>
+              </div>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-3">
+              <div
+                id="pipe-empty"
+                class="text-sm text-gray-400 p-4 rounded-md bg-gray-900/50 border mongodb-border"
+              >
+                <p class="mb-2">
+                  <strong class="text-white">Why pipelines?</strong> A one-shot
+                  prompt is a black box: when it's wrong you can't tell which
+                  part failed. A pipeline breaks the ask into small steps —
+                  deterministic <code>git</code>/<code>search</code>/<code
+                    >transform</code
+                  >
+                  steps produce the objective artifacts, and each LLM
+                  <code>extract</code>/<code>report</code> step is boxed in by
+                  them.
+                </p>
+                <p>
+                  Type an ask on the left and let the AI propose a pipeline (try
+                  different approaches), or start from a template. Then edit any
+                  step, pick a model per step, and run. The full audit trail is
+                  saved.
+                </p>
+              </div>
+              <textarea
+                id="pipe-json-editor"
+                spellcheck="false"
+                class="hidden w-full h-80 bg-gray-950 border mongodb-border rounded-md p-2 font-mono text-xs"
+              ></textarea>
+              <div id="pipe-steps" class="space-y-3"></div>
+              <div id="pipe-run-log" class="space-y-2"></div>
+              <div
+                id="pipe-final"
+                class="hidden chat-bubble-ai p-4 rounded-lg markdown-content"
+              ></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script>
       document.addEventListener("DOMContentLoaded", () => {
         // --- UI Elements ---
@@ -1168,6 +1436,18 @@
             "close-view-file-modal-btn"
           ),
           copyCodeContextBtn: document.getElementById("copy-code-context-btn"),
+          settingsBtn: document.getElementById("settings-btn"),
+          settingsModal: document.getElementById("settings-modal"),
+          closeSettingsBtn: document.getElementById("close-settings-btn"),
+          settingsHealth: document.getElementById("settings-health"),
+          settingsStatus: document.getElementById("settings-status"),
+          embeddingSelect: document.getElementById("embedding-select"),
+          embeddingNote: document.getElementById("embedding-note"),
+          llmSelect: document.getElementById("llm-select"),
+          fastLlmSelect: document.getElementById("fast-llm-select"),
+          applyModelsBtn: document.getElementById("apply-models-btn"),
+          refreshModelsBtn: document.getElementById("refresh-models-btn"),
+          healthBanner: document.getElementById("health-banner"),
         };
 
         // --- Constants ---
@@ -1255,6 +1535,7 @@
           ui.previewContextBtn.disabled = true;
           ui.manageContextBtn.disabled = true;
           ui.convoDropdownBtn.disabled = true;
+          document.getElementById("pipelines-btn").disabled = true;
           ui.messageInput.placeholder = "Select code snippets to begin...";
           ui.statusDot.classList.remove("bg-green-500", "bg-red-500");
           ui.statusDot.classList.add("bg-yellow-500", "animate-pulse");
@@ -1501,11 +1782,16 @@
             Object.keys(conversations).length === 0;
 
           const isIndexing = scanStatusInterval !== null;
-          if (hasContext && !isIndexing) {
+          // Chat is available once a scan is complete: the agent will retrieve
+          // context automatically, and any manual selections are added on top.
+          const canChat = !!currentSessionId && filesProcessed && !isIndexing;
+          if (canChat) {
             ui.messageInput.disabled = false;
             ui.sendBtn.disabled = false;
-            ui.previewContextBtn.disabled = false;
-            ui.messageInput.placeholder = `Ask about the selected context...`;
+            ui.previewContextBtn.disabled = !hasContext;
+            ui.messageInput.placeholder = hasContext
+              ? `Ask about the selected context (or anything in the codebase)...`
+              : `Ask anything about this codebase...`;
             if (ui.presetButtons.classList.contains("hidden")) {
               ui.presetButtons.classList.remove("hidden");
               ui.presetButtons.classList.add("flex", "animate-fadeInUp");
@@ -1516,7 +1802,7 @@
             ui.previewContextBtn.disabled = true;
             ui.messageInput.placeholder = isIndexing
               ? "Please wait for indexing to complete..."
-              : "Select code snippets or summaries to begin...";
+              : "Scan a codebase to begin...";
             ui.presetButtons.classList.add("hidden");
             ui.presetButtons.classList.remove("flex", "animate-fadeInUp");
           }
@@ -1959,8 +2245,59 @@
           }
         }
 
+        const STAGE_LABELS = {
+          plan: "Planned the approach",
+          retrieve: "Searched the codebase",
+          grade: "Graded relevant snippets",
+          expand: "Expanded related entities",
+          sufficiency: "Checked if context was sufficient",
+          draft: "Drafted the answer",
+          verify: "Verified grounding & citations",
+          revise: "Revised to fix grounding issues",
+        };
+
+        function stageDetailText(stage, detail) {
+          try {
+            if (stage === "plan")
+              return `${detail.classification} • ${
+                (detail.sub_queries || []).length
+              } sub-quer${
+                (detail.sub_queries || []).length === 1 ? "y" : "ies"
+              }`;
+            if (stage === "retrieve")
+              return `${detail.new_hits} new (${detail.total_hits} total)`;
+            if (stage === "grade")
+              return `${(detail.kept || []).length} kept`;
+            if (stage === "expand")
+              return `+${(detail.added || []).length}`;
+            if (stage === "sufficiency")
+              return detail.sufficient ? "sufficient" : "needs more";
+            if (stage === "verify")
+              return detail.grounded
+                ? "grounded"
+                : `${(detail.issues || []).length} issue(s)`;
+            if (stage === "draft" || stage === "revise")
+              return `${detail.chars} chars`;
+          } catch (e) {}
+          return "";
+        }
+
+        function buildTraceMarkup(steps) {
+          const rows = steps
+            .map((s) => {
+              const label = STAGE_LABELS[s.stage] || s.stage;
+              const detail = escapeHtml(stageDetailText(s.stage, s.detail || {}));
+              return `<li><span class="text-green-400"><i class="fa-solid fa-check fa-xs mr-2"></i></span>${label}${
+                detail ? ` <span class="text-gray-500">(${detail})</span>` : ""
+              }</li>`;
+            })
+            .join("");
+          return `<details class="agent-trace text-xs text-gray-400 mb-2 border-b mongodb-border pb-2"><summary class="text-gray-400 hover:text-white"><i class="fa-solid fa-chevron-right details-arrow mr-2"></i>Agent reasoning (${steps.length} steps)</summary><ul class="mt-2 space-y-1 ml-1">${rows}</ul></details>`;
+        }
+
         async function handleSendMessage(messageText) {
           if (!messageText.trim()) return;
+          if (!currentSessionId) return;
 
           const selectedCode = getSelectedCodeItems();
           const selectedSummaries = getSelectedSummaryItems();
@@ -1968,30 +2305,20 @@
             ({ id, ...rest }) => rest
           );
 
-          if (
-            Object.keys(selectedCode).length === 0 &&
-            selectedSummaries.length === 0 &&
-            customContextSnippets.length === 0
-          ) {
-            const errId = createMessage(
-              "assistant",
-              `**Error:** Please select files, code snippets, or summaries before asking a question.`
-            );
-            renderMessage(errId);
-            return;
-          }
-
           const userMsgId = createMessage("user", messageText);
           renderMessage(userMsgId);
           ui.messageInput.value = "";
           ui.chatWindow.scrollTop = ui.chatWindow.scrollHeight;
 
+          // Live trace + thinking bubble that we update as SSE events arrive.
           const thinkingWrapper = document.createElement("div");
           thinkingWrapper.className =
             "flex mb-4 animate-fadeInUp justify-start";
-          thinkingWrapper.innerHTML = `<div class="p-4 rounded-lg max-w-4xl chat-bubble-ai"><div class="thinking-indicator flex items-center space-x-2"><div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div><div class="w-2 h-2 bg-green-400 rounded-full animate-pulse" style="animation-delay: 0.2s;"></div><div class="w-2 h-2 bg-green-400 rounded-full animate-pulse" style="animation-delay: 0.4s;"></div><span class="text-sm text-gray-400">Analyzing...</span></div></div>`;
+          thinkingWrapper.innerHTML = `<div class="p-4 rounded-lg max-w-4xl chat-bubble-ai w-full"><div class="agent-live-trace text-xs text-gray-300 space-y-1"></div><div class="thinking-indicator flex items-center space-x-2 mt-2"><div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div><div class="w-2 h-2 bg-green-400 rounded-full animate-pulse" style="animation-delay: 0.2s;"></div><div class="w-2 h-2 bg-green-400 rounded-full animate-pulse" style="animation-delay: 0.4s;"></div><span class="agent-live-stage text-sm text-gray-400">Thinking...</span></div></div>`;
           ui.chatWindow.appendChild(thinkingWrapper);
           ui.chatWindow.scrollTop = ui.chatWindow.scrollHeight;
+          const liveTrace = thinkingWrapper.querySelector(".agent-live-trace");
+          const liveStage = thinkingWrapper.querySelector(".agent-live-stage");
 
           ui.sendBtn.disabled = true;
           ui.previewContextBtn.disabled = true;
@@ -2008,8 +2335,9 @@
             }
           }
 
+          const steps = [];
           try {
-            const response = await fetch("/chat", {
+            const response = await fetch("/chat/stream", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -2021,10 +2349,53 @@
                 history: historyForPrompt,
               }),
             });
-            const result = await response.json();
-            if (!response.ok)
-              throw new Error(result.error || "The server returned an error.");
-            const assistantMsgId = createMessage("assistant", result.answer);
+            if (!response.ok) {
+              let msg = "The server returned an error.";
+              try {
+                msg = (await response.json()).error || msg;
+              } catch (e) {}
+              throw new Error(msg);
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "";
+            let finalAnswer = null;
+
+            while (true) {
+              const { value, done } = await reader.read();
+              if (done) break;
+              buffer += decoder.decode(value, { stream: true });
+              const chunks = buffer.split("\n\n");
+              buffer = chunks.pop();
+              for (const chunk of chunks) {
+                const line = chunk.trim();
+                if (!line.startsWith("data:")) continue;
+                const ev = JSON.parse(line.slice(5).trim());
+                if (ev.type === "step") {
+                  steps.push(ev);
+                  const label = STAGE_LABELS[ev.stage] || ev.stage;
+                  const detail = escapeHtml(
+                    stageDetailText(ev.stage, ev.detail || {})
+                  );
+                  liveStage.textContent = `${label}...`;
+                  liveTrace.innerHTML += `<div><span class="text-green-400"><i class="fa-solid fa-check fa-xs mr-2"></i></span>${label}${
+                    detail
+                      ? ` <span class="text-gray-500">(${detail})</span>`
+                      : ""
+                  }</div>`;
+                  ui.chatWindow.scrollTop = ui.chatWindow.scrollHeight;
+                } else if (ev.type === "answer") {
+                  finalAnswer = ev.answer;
+                }
+              }
+            }
+
+            const traceMarkup = steps.length ? buildTraceMarkup(steps) : "";
+            const assistantMsgId = createMessage(
+              "assistant",
+              traceMarkup + (finalAnswer || "*(no answer)*")
+            );
             thinkingWrapper.remove();
             renderMessage(assistantMsgId);
           } catch (error) {
@@ -2582,6 +2953,7 @@
 
           ui.searchInput.disabled = false;
           ui.searchBtn.disabled = false;
+          document.getElementById("pipelines-btn").disabled = false;
           ui.searchInput.placeholder = "Search indexed code...";
           ui.searchInput.classList.add("glow-on-ready");
           setTimeout(
@@ -3002,8 +3374,933 @@
             });
         });
 
+        // --- Models, Providers & Health ---
+        let modelsCache = null;
+
+        function escapeHtml(str) {
+          return (str || "").replace(
+            /[&<>"']/g,
+            (c) =>
+              ({
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#39;",
+              }[c])
+          );
+        }
+
+        async function fetchModels() {
+          try {
+            const res = await fetch("/models");
+            modelsCache = await res.json();
+            renderModelPickers();
+          } catch (e) {
+            console.error("Failed to load models", e);
+          }
+        }
+
+        function renderModelPickers() {
+          if (!modelsCache) return;
+          const { embedding_models, chat_models, active } = modelsCache;
+
+          // Embedding picker grouped by provider.
+          const byProvider = {};
+          embedding_models.forEach((m) => {
+            (byProvider[m.provider] = byProvider[m.provider] || []).push(m);
+          });
+          let embHtml = "";
+          Object.keys(byProvider).forEach((prov) => {
+            embHtml += `<optgroup label="${prov.toUpperCase()}">`;
+            byProvider[prov].forEach((m) => {
+              const dims = m.dims ? `${m.dims}d` : "?";
+              const badge = m.available ? "" : " — needs pull/key";
+              const sel = m.id === active.embedding ? "selected" : "";
+              embHtml += `<option value="${m.id}" ${sel} ${
+                m.available ? "" : 'data-unavailable="1"'
+              }>${escapeHtml(m.label)} (${dims})${badge}</option>`;
+            });
+            embHtml += `</optgroup>`;
+          });
+          ui.embeddingSelect.innerHTML = embHtml;
+
+          const chatOptions = (selectedId) =>
+            chat_models
+              .map((m) => {
+                const badge = m.available ? "" : " — needs pull";
+                const sel = m.id === selectedId ? "selected" : "";
+                return `<option value="${m.id}" ${sel}>${escapeHtml(
+                  m.label || m.id
+                )}${badge}</option>`;
+              })
+              .join("");
+          ui.llmSelect.innerHTML = chatOptions(active.llm);
+          ui.fastLlmSelect.innerHTML = chatOptions(active.fast_llm);
+
+          updateEmbeddingNote();
+        }
+
+        function updateEmbeddingNote() {
+          if (!modelsCache) return;
+          const opt = ui.embeddingSelect.selectedOptions[0];
+          const m = modelsCache.embedding_models.find(
+            (x) => x.id === ui.embeddingSelect.value
+          );
+          let note = m?.notes || "";
+          if (opt?.dataset.unavailable) {
+            const name = m.id.startsWith("ollama/")
+              ? m.id.slice("ollama/".length)
+              : m.id;
+            if (m.provider === "ollama") {
+              note += ` — not pulled. `;
+              ui.embeddingNote.innerHTML =
+                escapeHtml(note) +
+                `<button class="pull-model-btn underline text-green-400" data-model="${name}">Pull now</button>`;
+              return;
+            } else {
+              note += ` — set VOYAGE_API_KEY to enable.`;
+            }
+          }
+          ui.embeddingNote.textContent = note;
+        }
+
+        async function fetchHealth() {
+          try {
+            const res = await fetch("/health");
+            const h = await res.json();
+            renderHealth(h);
+            return h;
+          } catch (e) {
+            console.error("health failed", e);
+          }
+        }
+
+        function dot(ok) {
+          return `<span class="inline-block w-2 h-2 rounded-full ${
+            ok ? "bg-green-500" : "bg-red-500"
+          }"></span>`;
+        }
+
+        function renderHealth(h) {
+          // Detailed view inside settings modal.
+          const idxReady = (h.mongo?.indexes || []).filter(
+            (i) => i.queryable
+          ).length;
+          ui.settingsHealth.innerHTML = `
+            <div class="flex items-center space-x-2">${dot(
+              h.ollama?.up
+            )}<span>Ollama ${
+            h.ollama?.up ? "connected" : "unreachable"
+          } (${escapeHtml(h.ollama?.host || "")})</span></div>
+            <div class="flex items-center space-x-2">${dot(
+              h.mongo?.up
+            )}<span>MongoDB ${
+            h.mongo?.up ? "connected" : "unreachable"
+          } — ${idxReady} search index(es) ready</span></div>
+            <div class="flex items-center space-x-2">${dot(
+              !h.voyage?.configured || h.voyage?.ok
+            )}<span>Voyage ${
+            h.voyage?.configured
+              ? h.voyage?.ok
+                ? "key valid"
+                : "key invalid"
+              : "not configured (optional)"
+          }</span></div>`;
+
+          // Top banner only when something needs attention.
+          const problems = [];
+          if (!h.ollama?.up)
+            problems.push(
+              `Ollama is not reachable at ${escapeHtml(
+                h.ollama?.host || ""
+              )}. Start it with <code>ollama serve</code>.`
+            );
+          if (!h.mongo?.up)
+            problems.push(
+              `MongoDB is not reachable. Start it with <code>docker compose up -d</code>.`
+            );
+          if (h.ollama?.up && !h.active?.embedding_available) {
+            const name = (h.active?.embedding || "").startsWith("ollama/")
+              ? h.active.embedding.slice("ollama/".length)
+              : h.active?.embedding;
+            problems.push(
+              `Embedding model <b>${escapeHtml(
+                h.active?.embedding
+              )}</b> is not available. <button class="pull-model-btn underline text-green-400" data-model="${escapeHtml(
+                name
+              )}">Pull it</button> or pick another in Models.`
+            );
+          }
+          if (h.ollama?.up && !h.active?.llm_available) {
+            problems.push(
+              `Answer model <b>${escapeHtml(
+                h.active?.llm
+              )}</b> is not pulled. <button class="pull-model-btn underline text-green-400" data-model="${escapeHtml(
+                h.active?.llm
+              )}">Pull it</button>.`
+            );
+          }
+          if (problems.length) {
+            ui.healthBanner.innerHTML = `<div class="text-yellow-300"><i class="fa-solid fa-triangle-exclamation mr-2"></i>${problems.join(
+              " &nbsp;•&nbsp; "
+            )}</div><button id="dismiss-health" class="text-gray-400 hover:text-white ml-4">&times;</button>`;
+            ui.healthBanner.classList.remove("hidden");
+            ui.healthBanner.classList.add("flex");
+            ui.healthBanner.style.backgroundColor = "rgba(120, 80, 0, 0.25)";
+          } else {
+            ui.healthBanner.classList.add("hidden");
+            ui.healthBanner.classList.remove("flex");
+          }
+        }
+
+        function openSettings() {
+          ui.settingsModal.classList.remove("hidden");
+          fetchModels();
+          fetchHealth();
+        }
+        function closeSettings() {
+          ui.settingsModal.classList.add("hidden");
+        }
+
+        async function applyModelSelection() {
+          const payload = {
+            embedding_id: ui.embeddingSelect.value,
+            llm: ui.llmSelect.value,
+            fast_llm: ui.fastLlmSelect.value,
+          };
+          if (currentSessionId) payload.sessionId = currentSessionId;
+
+          ui.applyModelsBtn.disabled = true;
+          ui.settingsStatus.textContent = "Applying...";
+          try {
+            const res = await fetch("/models/select", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Failed to apply.");
+            ui.settingsStatus.textContent = data.reembedding
+              ? "Re-embedding the codebase with the new model..."
+              : "Applied.";
+            await fetchHealth();
+            if (data.reembedding && currentSessionId) {
+              closeSettings();
+              startScanStatusPoller();
+            }
+          } catch (e) {
+            ui.settingsStatus.innerHTML = `<span class="text-red-400">${escapeHtml(
+              e.message
+            )}</span>`;
+          } finally {
+            ui.applyModelsBtn.disabled = false;
+          }
+        }
+
+        async function pullModel(modelName) {
+          ui.settingsStatus.textContent = `Pulling ${modelName}...`;
+          if (ui.settingsModal.classList.contains("hidden")) openSettings();
+          try {
+            const res = await fetch("/models/pull", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ model: modelName }),
+            });
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "";
+            while (true) {
+              const { value, done } = await reader.read();
+              if (done) break;
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n\n");
+              buffer = lines.pop();
+              for (const line of lines) {
+                if (!line.startsWith("data:")) continue;
+                const ev = JSON.parse(line.slice(5).trim());
+                if (ev.error) {
+                  ui.settingsStatus.innerHTML = `<span class="text-red-400">${escapeHtml(
+                    ev.error
+                  )}</span>`;
+                } else if (ev.status === "done") {
+                  ui.settingsStatus.textContent = `Pulled ${modelName}.`;
+                } else {
+                  let msg = ev.status || "";
+                  if (ev.completed && ev.total) {
+                    msg += ` ${Math.floor((ev.completed / ev.total) * 100)}%`;
+                  }
+                  ui.settingsStatus.textContent = `Pulling ${modelName}: ${msg}`;
+                }
+              }
+            }
+            await fetchModels();
+            await fetchHealth();
+          } catch (e) {
+            ui.settingsStatus.innerHTML = `<span class="text-red-400">${escapeHtml(
+              e.message
+            )}</span>`;
+          }
+        }
+
+        ui.settingsBtn.addEventListener("click", openSettings);
+        ui.closeSettingsBtn.addEventListener("click", closeSettings);
+        ui.settingsModal.addEventListener("click", (e) => {
+          if (e.target === ui.settingsModal) closeSettings();
+        });
+        ui.applyModelsBtn.addEventListener("click", applyModelSelection);
+        ui.refreshModelsBtn.addEventListener("click", () => {
+          fetchModels();
+          fetchHealth();
+        });
+        ui.embeddingSelect.addEventListener("change", updateEmbeddingNote);
+        document.addEventListener("click", (e) => {
+          const pullBtn = e.target.closest(".pull-model-btn");
+          if (pullBtn) {
+            e.preventDefault();
+            pullModel(pullBtn.dataset.model);
+          }
+          if (e.target.id === "dismiss-health") {
+            ui.healthBanner.classList.add("hidden");
+            ui.healthBanner.classList.remove("flex");
+          }
+        });
+
+        // --- Auditable Pipelines ---------------------------------------
+        const pipeUI = {
+          btn: document.getElementById("pipelines-btn"),
+          modal: document.getElementById("pipelines-modal"),
+          closeBtn: document.getElementById("close-pipelines-btn"),
+          ask: document.getElementById("pipe-ask"),
+          approach: document.getElementById("pipe-approach"),
+          approachNote: document.getElementById("pipe-approach-note"),
+          plannerModel: document.getElementById("pipe-planner-model"),
+          planBtn: document.getElementById("pipe-plan-btn"),
+          planStatus: document.getElementById("pipe-plan-status"),
+          templates: document.getElementById("pipe-templates"),
+          runs: document.getElementById("pipe-runs"),
+          refreshRuns: document.getElementById("pipe-refresh-runs"),
+          name: document.getElementById("pipe-name"),
+          jsonToggle: document.getElementById("pipe-json-toggle"),
+          addStep: document.getElementById("pipe-add-step"),
+          runBtn: document.getElementById("pipe-run-btn"),
+          empty: document.getElementById("pipe-empty"),
+          jsonEditor: document.getElementById("pipe-json-editor"),
+          steps: document.getElementById("pipe-steps"),
+          runLog: document.getElementById("pipe-run-log"),
+          final: document.getElementById("pipe-final"),
+        };
+
+        const PIPE_STEP_TYPES = ["git", "search", "extract", "transform", "report"];
+        const PIPE_LLM_TYPES = ["extract", "report"];
+        let pipeSpec = null;
+        let pipeApproaches = [];
+        let pipeRunning = false;
+        let pipeJsonMode = false;
+
+        function pipeModelOptions(selected, emptyLabel) {
+          let html = `<option value="">${escapeHtml(emptyLabel)}</option>`;
+          (modelsCache?.chat_models || []).forEach((m) => {
+            const sel = m.id === selected ? "selected" : "";
+            const badge = m.available ? "" : " — needs pull";
+            html += `<option value="${escapeHtml(m.id)}" ${sel}>${escapeHtml(
+              m.label || m.id
+            )}${badge}</option>`;
+          });
+          return html;
+        }
+
+        async function openPipelines() {
+          pipeUI.modal.classList.remove("hidden");
+          if (!modelsCache) await fetchModels();
+          pipeUI.plannerModel.innerHTML = pipeModelOptions(
+            "",
+            "Fast model (default)"
+          );
+          try {
+            const res = await fetch(
+              `/pipelines/templates?sessionId=${currentSessionId || ""}`
+            );
+            const data = await res.json();
+            pipeApproaches = data.approaches || [];
+            renderPipeApproaches();
+            renderPipeTemplates(data.templates || []);
+          } catch (e) {
+            console.error("Failed to load pipeline templates", e);
+          }
+          loadPipeRuns();
+          if (pipeSpec) renderPipeSteps();
+        }
+
+        function closePipelines() {
+          pipeUI.modal.classList.add("hidden");
+        }
+
+        function renderPipeApproaches() {
+          pipeUI.approach.innerHTML = pipeApproaches
+            .map(
+              (a, i) =>
+                `<option value="${escapeHtml(a.id)}" ${
+                  i === 0 ? "selected" : ""
+                }>${escapeHtml(a.label)}</option>`
+            )
+            .join("");
+          updatePipeApproachNote();
+        }
+
+        function updatePipeApproachNote() {
+          const a = pipeApproaches.find((x) => x.id === pipeUI.approach.value);
+          pipeUI.approachNote.textContent = a ? a.guidance : "";
+        }
+
+        function renderPipeTemplates(templates) {
+          pipeUI.templates.innerHTML = templates
+            .map(
+              (t, i) => `
+              <button class="pipe-template-btn w-full text-left p-2 rounded-md bg-gray-900/50 border mongodb-border hover:bg-gray-700 transition-colors" data-idx="${i}">
+                <div class="text-sm font-semibold">${escapeHtml(t.name)}</div>
+                <div class="text-xs text-gray-400">${escapeHtml(
+                  t.description || ""
+                )}</div>
+              </button>`
+            )
+            .join("");
+          pipeUI.templates.querySelectorAll(".pipe-template-btn").forEach((btn) =>
+            btn.addEventListener("click", () => {
+              pipeSpec = JSON.parse(JSON.stringify(templates[btn.dataset.idx]));
+              clearPipeRunView();
+              renderPipeSteps();
+              pipeUI.planStatus.textContent = `Loaded template "${pipeSpec.name}". Edit any step or run it.`;
+            })
+          );
+        }
+
+        // ------------------------------------------------ spec editor
+        function pipeStepParamEditors(step) {
+          const p = step.params || {};
+          const inputRow = `
+            <div class="flex items-center space-x-2">
+              <label class="text-xs text-gray-400 w-16 flex-shrink-0">inputs</label>
+              <input data-field="inputs" class="pipe-input flex-1 p-1 rounded bg-gray-800 border mongodb-border text-xs font-mono"
+                     value="${escapeHtml((step.inputs || []).join(", "))}"
+                     placeholder='prior step ids and/or "ask", comma-separated' />
+            </div>`;
+          if (step.type === "search") {
+            return `
+              <div class="flex items-center space-x-2">
+                <label class="text-xs text-gray-400 w-16 flex-shrink-0">query</label>
+                <input data-param="query" class="pipe-input flex-1 p-1 rounded bg-gray-800 border mongodb-border text-xs"
+                       value="${escapeHtml(p.query || "")}" placeholder="hybrid search query" />
+                <label class="text-xs text-gray-400">limit</label>
+                <input data-param="limit" type="number" min="1" max="25" class="pipe-input w-16 p-1 rounded bg-gray-800 border mongodb-border text-xs"
+                       value="${escapeHtml(String(p.limit || 10))}" />
+              </div>`;
+          }
+          if (step.type === "git") {
+            const ops = ["log", "diff", "churn", "contributors"];
+            return `
+              <div class="flex items-center space-x-2 flex-wrap gap-y-1">
+                <label class="text-xs text-gray-400 w-16 flex-shrink-0">op</label>
+                <select data-param="op" class="pipe-input p-1 rounded bg-gray-800 border mongodb-border text-xs">
+                  ${ops
+                    .map(
+                      (o) =>
+                        `<option value="${o}" ${
+                          (p.op || "log") === o ? "selected" : ""
+                        }>${o}</option>`
+                    )
+                    .join("")}
+                </select>
+                <label class="text-xs text-gray-400">limit</label>
+                <input data-param="limit" type="number" class="pipe-input w-16 p-1 rounded bg-gray-800 border mongodb-border text-xs" value="${escapeHtml(
+                  String(p.limit || "")
+                )}" placeholder="20" />
+                <label class="text-xs text-gray-400" title="diff only: last N commits">last</label>
+                <input data-param="last" type="number" class="pipe-input w-14 p-1 rounded bg-gray-800 border mongodb-border text-xs" value="${escapeHtml(
+                  String(p.last || "")
+                )}" />
+                <label class="text-xs text-gray-400" title="churn only: top N files">top</label>
+                <input data-param="top" type="number" class="pipe-input w-14 p-1 rounded bg-gray-800 border mongodb-border text-xs" value="${escapeHtml(
+                  String(p.top || "")
+                )}" />
+              </div>`;
+          }
+          if (step.type === "transform") {
+            const ops = ["top_n", "count_by", "flatten", "passthrough"];
+            return `
+              <div class="flex items-center space-x-2 flex-wrap gap-y-1">
+                <label class="text-xs text-gray-400 w-16 flex-shrink-0">op</label>
+                <select data-param="op" class="pipe-input p-1 rounded bg-gray-800 border mongodb-border text-xs">
+                  ${ops
+                    .map(
+                      (o) =>
+                        `<option value="${o}" ${
+                          (p.op || "passthrough") === o ? "selected" : ""
+                        }>${o}</option>`
+                    )
+                    .join("")}
+                </select>
+                <label class="text-xs text-gray-400">field</label>
+                <input data-param="field" class="pipe-input w-28 p-1 rounded bg-gray-800 border mongodb-border text-xs" value="${escapeHtml(
+                  p.field || ""
+                )}" />
+                <label class="text-xs text-gray-400">n</label>
+                <input data-param="n" type="number" class="pipe-input w-14 p-1 rounded bg-gray-800 border mongodb-border text-xs" value="${escapeHtml(
+                  String(p.n || 10)
+                )}" />
+              </div>${inputRow}`;
+          }
+          // extract / report
+          return `
+            <textarea data-field="instructions" rows="3"
+              class="pipe-input w-full p-2 rounded bg-gray-800 border mongodb-border text-xs"
+              placeholder="${
+                step.type === "extract"
+                  ? "What JSON facts must the model extract? Require evidence (file path / commit / quote) per fact."
+                  : "What should the final Markdown report contain? It may only use the inputs below."
+              }">${escapeHtml(step.instructions || "")}</textarea>${inputRow}`;
+        }
+
+        function renderPipeSteps() {
+          pipeUI.empty.classList.toggle("hidden", !!pipeSpec);
+          pipeUI.name.value = pipeSpec?.name || "";
+          if (!pipeSpec) {
+            pipeUI.steps.innerHTML = "";
+            return;
+          }
+          if (pipeJsonMode) {
+            pipeUI.jsonEditor.value = JSON.stringify(pipeSpec, null, 2);
+            pipeUI.steps.innerHTML = "";
+            return;
+          }
+          pipeUI.steps.innerHTML = (pipeSpec.steps || [])
+            .map((step, i) => {
+              const isLLM = PIPE_LLM_TYPES.includes(step.type);
+              const modelCell = isLLM
+                ? `<select data-field="model" class="pipe-input p-1 rounded bg-gray-800 border mongodb-border text-xs max-w-[160px]" title="Model for this step">
+                     ${pipeModelOptions(step.model || "", "auto model")}
+                   </select>`
+                : `<span class="text-xs text-gray-500 italic px-1" title="This step is deterministic code, not an LLM">deterministic</span>`;
+              return `
+              <div class="pipe-step border mongodb-border rounded-md bg-gray-900/60" data-idx="${i}">
+                <div class="flex items-center p-2 space-x-2 border-b border-gray-800 flex-wrap gap-y-1">
+                  <span class="text-xs text-gray-500 font-mono w-5 text-center flex-shrink-0">${
+                    i + 1
+                  }</span>
+                  <select data-field="type" class="pipe-input p-1 rounded bg-gray-800 border mongodb-border text-xs">
+                    ${PIPE_STEP_TYPES.map(
+                      (t) =>
+                        `<option value="${t}" ${
+                          step.type === t ? "selected" : ""
+                        }>${t}</option>`
+                    ).join("")}
+                  </select>
+                  <input data-field="title" class="pipe-input flex-1 min-w-[120px] p-1 bg-transparent text-sm font-semibold focus:outline-none border-b border-transparent focus:border-green-500"
+                         value="${escapeHtml(step.title || "")}" placeholder="Step title" />
+                  <input data-field="id" class="pipe-input w-28 p-1 rounded bg-gray-800 border mongodb-border text-xs font-mono"
+                         value="${escapeHtml(step.id || "")}" title="Step id (referenced by other steps' inputs)" />
+                  ${modelCell}
+                  <div class="flex items-center space-x-1 flex-shrink-0">
+                    <button data-act="up" class="text-gray-500 hover:text-white px-1" title="Move up"><i class="fa-solid fa-arrow-up"></i></button>
+                    <button data-act="down" class="text-gray-500 hover:text-white px-1" title="Move down"><i class="fa-solid fa-arrow-down"></i></button>
+                    <button data-act="del" class="text-gray-500 hover:text-red-400 px-1" title="Delete step"><i class="fa-solid fa-trash"></i></button>
+                  </div>
+                </div>
+                <div class="p-2 space-y-2">${pipeStepParamEditors(step)}</div>
+              </div>`;
+            })
+            .join("");
+        }
+
+        function pipeSyncField(stepIdx, el) {
+          const step = pipeSpec.steps[stepIdx];
+          if (!step) return;
+          const field = el.dataset.field;
+          const param = el.dataset.param;
+          if (param) {
+            step.params = step.params || {};
+            if (el.type === "number") {
+              const v = parseInt(el.value, 10);
+              if (isNaN(v)) delete step.params[param];
+              else step.params[param] = v;
+            } else if (el.value === "") {
+              delete step.params[param];
+            } else {
+              step.params[param] = el.value;
+            }
+            return;
+          }
+          if (field === "inputs") {
+            step.inputs = el.value
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean);
+          } else if (field === "model") {
+            step.model = el.value || null;
+          } else if (field === "type") {
+            step.type = el.value;
+            step.output = step.type === "report" ? "text" : "json";
+            renderPipeSteps(); // param editors differ per type
+          } else if (field) {
+            step[field] = el.value;
+          }
+        }
+
+        pipeUI.steps.addEventListener("input", (e) => {
+          const el = e.target.closest(".pipe-input");
+          if (!el || el.tagName === "SELECT") return;
+          const card = el.closest(".pipe-step");
+          if (card) pipeSyncField(parseInt(card.dataset.idx, 10), el);
+        });
+        pipeUI.steps.addEventListener("change", (e) => {
+          const el = e.target.closest(".pipe-input");
+          if (!el || el.tagName !== "SELECT") return;
+          const card = el.closest(".pipe-step");
+          if (card) pipeSyncField(parseInt(card.dataset.idx, 10), el);
+        });
+        pipeUI.steps.addEventListener("click", (e) => {
+          const btn = e.target.closest("button[data-act]");
+          if (!btn || !pipeSpec) return;
+          const idx = parseInt(btn.closest(".pipe-step").dataset.idx, 10);
+          const steps = pipeSpec.steps;
+          if (btn.dataset.act === "del") steps.splice(idx, 1);
+          if (btn.dataset.act === "up" && idx > 0)
+            [steps[idx - 1], steps[idx]] = [steps[idx], steps[idx - 1]];
+          if (btn.dataset.act === "down" && idx < steps.length - 1)
+            [steps[idx + 1], steps[idx]] = [steps[idx], steps[idx + 1]];
+          renderPipeSteps();
+        });
+
+        pipeUI.name.addEventListener("input", () => {
+          if (pipeSpec) pipeSpec.name = pipeUI.name.value;
+        });
+
+        pipeUI.addStep.addEventListener("click", () => {
+          if (!pipeSpec)
+            pipeSpec = { name: "Untitled pipeline", description: "", steps: [] };
+          const n = pipeSpec.steps.length + 1;
+          pipeSpec.steps.push({
+            id: `step_${n}`,
+            title: `Step ${n}`,
+            type: "search",
+            model: null,
+            instructions: "",
+            inputs: [],
+            output: "json",
+            params: { query: "", limit: 10 },
+          });
+          renderPipeSteps();
+        });
+
+        pipeUI.jsonToggle.addEventListener("click", () => {
+          if (!pipeSpec) return;
+          if (!pipeJsonMode) {
+            pipeJsonMode = true;
+            pipeUI.jsonEditor.classList.remove("hidden");
+            pipeUI.jsonToggle.innerHTML =
+              '<i class="fa-solid fa-check mr-1"></i>Apply JSON';
+            renderPipeSteps();
+          } else {
+            try {
+              pipeSpec = JSON.parse(pipeUI.jsonEditor.value);
+              pipeJsonMode = false;
+              pipeUI.jsonEditor.classList.add("hidden");
+              pipeUI.jsonToggle.innerHTML =
+                '<i class="fa-solid fa-code mr-1"></i>JSON';
+              renderPipeSteps();
+              pipeUI.planStatus.textContent = "JSON applied.";
+            } catch (err) {
+              pipeUI.planStatus.innerHTML = `<span class="text-red-400">Invalid JSON: ${escapeHtml(
+                err.message
+              )}</span>`;
+            }
+          }
+        });
+
+        // ------------------------------------------------ planning
+        pipeUI.approach.addEventListener("change", updatePipeApproachNote);
+
+        pipeUI.planBtn.addEventListener("click", async () => {
+          const ask = pipeUI.ask.value.trim();
+          if (!ask) {
+            pipeUI.planStatus.innerHTML =
+              '<span class="text-yellow-400">Type an ask first.</span>';
+            return;
+          }
+          pipeUI.planBtn.disabled = true;
+          pipeUI.planStatus.textContent = `Planning with "${pipeUI.approach.value}" approach...`;
+          try {
+            const res = await fetch("/pipelines/plan", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                ask,
+                approach: pipeUI.approach.value,
+                model: pipeUI.plannerModel.value || null,
+                sessionId: currentSessionId,
+              }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Planning failed.");
+            pipeSpec = data.spec;
+            clearPipeRunView();
+            renderPipeSteps();
+            pipeUI.planStatus.textContent = `Planned ${pipeSpec.steps.length} steps. Edit anything — or re-plan with another approach to compare decompositions.`;
+          } catch (e) {
+            pipeUI.planStatus.innerHTML = `<span class="text-red-400">${escapeHtml(
+              e.message
+            )}</span>`;
+          } finally {
+            pipeUI.planBtn.disabled = false;
+          }
+        });
+
+        // ------------------------------------------------ running
+        function clearPipeRunView() {
+          pipeUI.runLog.innerHTML = "";
+          pipeUI.final.classList.add("hidden");
+          pipeUI.final.innerHTML = "";
+        }
+
+        function pipePretty(v) {
+          if (v === null || v === undefined) return "";
+          return typeof v === "string" ? v : JSON.stringify(v, null, 2);
+        }
+
+        function pipeAuditDetails(audit) {
+          const sections = [
+            ["Input (what this step was given)", audit.input_preview],
+            ["Prompt (exact instructions sent to the model)", audit.prompt],
+            ["Output", pipePretty(audit.output)],
+            ["Error", audit.error],
+          ];
+          return sections
+            .filter(([, v]) => v)
+            .map(
+              ([label, v]) => `
+              <details class="mt-1">
+                <summary class="cursor-pointer text-xs text-gray-400 hover:text-white">${escapeHtml(
+                  label
+                )}</summary>
+                <pre class="mt-1 p-2 bg-gray-950 border mongodb-border rounded text-xs overflow-x-auto whitespace-pre-wrap max-h-64 overflow-y-auto">${escapeHtml(
+                  String(v).slice(0, 20000)
+                )}</pre>
+              </details>`
+            )
+            .join("");
+        }
+
+        function pipeRunStepRow(s) {
+          const model = s.model
+            ? ` · <span class="text-green-400">${escapeHtml(s.model)}</span>`
+            : " · deterministic";
+          return `
+            <div id="pipe-run-step-${escapeHtml(
+              s.id
+            )}" class="border mongodb-border rounded-md p-2 bg-gray-900/40">
+              <div class="flex items-center justify-between">
+                <span class="text-sm">
+                  <span class="pipe-run-status inline-block w-5 text-center text-gray-500"><i class="fa-regular fa-circle"></i></span>
+                  <span class="font-semibold">${escapeHtml(
+                    s.title || s.id
+                  )}</span>
+                  <span class="text-xs text-gray-500">(${escapeHtml(
+                    s.type
+                  )}${model})</span>
+                </span>
+                <span class="pipe-run-duration text-xs text-gray-500"></span>
+              </div>
+              <div class="pipe-run-audit"></div>
+            </div>`;
+        }
+
+        function handlePipeRunEvent(ev) {
+          if (ev.type === "pipeline_start") {
+            pipeUI.runLog.innerHTML =
+              `<div class="text-xs text-gray-400 font-mono">run ${escapeHtml(
+                ev.run_id
+              )}</div>` + ev.steps.map(pipeRunStepRow).join("");
+          } else if (ev.type === "step_start") {
+            const row = document.getElementById(`pipe-run-step-${ev.id}`);
+            if (row)
+              row.querySelector(".pipe-run-status").innerHTML =
+                '<i class="fa-solid fa-spinner animate-spin text-green-400"></i>';
+          } else if (ev.type === "step_done") {
+            const a = ev.audit;
+            const row = document.getElementById(`pipe-run-step-${a.id}`);
+            if (row) {
+              row.querySelector(".pipe-run-status").innerHTML =
+                a.status === "ok"
+                  ? '<i class="fa-solid fa-circle-check text-green-500"></i>'
+                  : '<i class="fa-solid fa-circle-xmark text-red-500"></i>';
+              row.querySelector(".pipe-run-duration").textContent = `${(
+                (a.duration_ms || 0) / 1000
+              ).toFixed(1)}s`;
+              row.querySelector(".pipe-run-audit").innerHTML =
+                pipeAuditDetails(a);
+            }
+          } else if (ev.type === "pipeline_done") {
+            if (ev.final) {
+              pipeUI.final.innerHTML = marked.parse(ev.final);
+              pipeUI.final.classList.remove("hidden");
+            }
+            loadPipeRuns();
+          } else if (ev.type === "error") {
+            pipeUI.runLog.insertAdjacentHTML(
+              "beforeend",
+              `<div class="text-red-400 text-sm">${escapeHtml(ev.error)}</div>`
+            );
+          }
+        }
+
+        pipeUI.runBtn.addEventListener("click", async () => {
+          if (!pipeSpec || !(pipeSpec.steps || []).length) {
+            pipeUI.planStatus.innerHTML =
+              '<span class="text-yellow-400">Plan or load a pipeline first.</span>';
+            return;
+          }
+          if (pipeRunning) return;
+          if (pipeJsonMode) pipeUI.jsonToggle.click(); // apply pending JSON edits
+          pipeRunning = true;
+          pipeUI.runBtn.disabled = true;
+          clearPipeRunView();
+          try {
+            const res = await fetch("/pipelines/run", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                sessionId: currentSessionId,
+                spec: pipeSpec,
+                ask: pipeUI.ask.value.trim(),
+              }),
+            });
+            if (!res.ok) {
+              const data = await res.json();
+              throw new Error(data.error || "Run failed to start.");
+            }
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "";
+            while (true) {
+              const { value, done } = await reader.read();
+              if (done) break;
+              buffer += decoder.decode(value, { stream: true });
+              const parts = buffer.split("\n\n");
+              buffer = parts.pop();
+              for (const part of parts) {
+                if (!part.startsWith("data:")) continue;
+                try {
+                  handlePipeRunEvent(JSON.parse(part.slice(5).trim()));
+                } catch (err) {
+                  console.error("Bad pipeline event", err);
+                }
+              }
+            }
+          } catch (e) {
+            pipeUI.runLog.insertAdjacentHTML(
+              "beforeend",
+              `<div class="text-red-400 text-sm">${escapeHtml(e.message)}</div>`
+            );
+          } finally {
+            pipeRunning = false;
+            pipeUI.runBtn.disabled = false;
+          }
+        });
+
+        // ------------------------------------------------ run history
+        async function loadPipeRuns() {
+          try {
+            const res = await fetch(
+              `/pipelines/runs?sessionId=${currentSessionId || ""}`
+            );
+            const data = await res.json();
+            const runs = data.runs || [];
+            if (!runs.length) {
+              pipeUI.runs.innerHTML =
+                '<p class="text-gray-500">No runs yet for this codebase.</p>';
+              return;
+            }
+            pipeUI.runs.innerHTML = runs
+              .map(
+                (r) => `
+                <button class="pipe-run-item w-full text-left p-2 rounded-md bg-gray-900/50 border mongodb-border hover:bg-gray-700 transition-colors" data-run="${escapeHtml(
+                  r._id
+                )}">
+                  <div class="flex items-center justify-between">
+                    <span class="font-semibold truncate">${escapeHtml(
+                      r.name || "Pipeline"
+                    )}</span>
+                    <span class="inline-block w-2 h-2 rounded-full flex-shrink-0 ${
+                      r.status === "ok" ? "bg-green-500" : "bg-red-500"
+                    }"></span>
+                  </div>
+                  <div class="text-gray-500">${escapeHtml(
+                    (r.created_at || "").replace("T", " ").slice(0, 19)
+                  )}</div>
+                </button>`
+              )
+              .join("");
+            pipeUI.runs.querySelectorAll(".pipe-run-item").forEach((btn) =>
+              btn.addEventListener("click", () => loadPipeRunDetail(btn.dataset.run))
+            );
+          } catch (e) {
+            console.error("Failed to load pipeline runs", e);
+          }
+        }
+
+        async function loadPipeRunDetail(runId) {
+          try {
+            const res = await fetch(`/pipelines/runs/${runId}`);
+            const run = await res.json();
+            if (!res.ok) throw new Error(run.error || "Run not found.");
+            // Load the spec back into the editor: the trail is re-runnable.
+            pipeSpec = run.spec;
+            pipeJsonMode = false;
+            pipeUI.jsonEditor.classList.add("hidden");
+            pipeUI.jsonToggle.innerHTML =
+              '<i class="fa-solid fa-code mr-1"></i>JSON';
+            renderPipeSteps();
+            clearPipeRunView();
+            pipeUI.runLog.innerHTML =
+              `<div class="text-xs text-gray-400 font-mono">saved run ${escapeHtml(
+                run._id
+              )} · ${escapeHtml(run.created_at || "")}</div>` +
+              (run.trail || [])
+                .map((a) =>
+                  pipeRunStepRow({
+                    id: a.id,
+                    title: a.title,
+                    type: a.type,
+                    model: a.model,
+                  })
+                )
+                .join("");
+            (run.trail || []).forEach((a) =>
+              handlePipeRunEvent({ type: "step_done", audit: a })
+            );
+            if (run.final_output) {
+              pipeUI.final.innerHTML = marked.parse(String(run.final_output));
+              pipeUI.final.classList.remove("hidden");
+            }
+            pipeUI.planStatus.textContent =
+              "Loaded a saved run: inspect each step below, tweak the spec, and re-run.";
+          } catch (e) {
+            pipeUI.planStatus.innerHTML = `<span class="text-red-400">${escapeHtml(
+              e.message
+            )}</span>`;
+          }
+        }
+
+        pipeUI.btn.addEventListener("click", openPipelines);
+        pipeUI.closeBtn.addEventListener("click", closePipelines);
+        pipeUI.modal.addEventListener("click", (e) => {
+          if (e.target === pipeUI.modal && !pipeRunning) closePipelines();
+        });
+        pipeUI.refreshRuns.addEventListener("click", loadPipeRuns);
+
         // --- Initial Setup ---
         resetForNewScan();
+        fetchHealth();
       });
     </script>
   </body>

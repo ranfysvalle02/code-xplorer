@@ -2,6 +2,97 @@
 
 ![](cw2.png)
 
+## Quickstart (local-first, free)
+
+code-xplorer runs entirely on your machine by default: [Ollama](https://ollama.com)
+for chat + embeddings, and a bundled local MongoDB Atlas container for hybrid
+search. No API keys required.
+
+**Prerequisites:** Docker, [Ollama](https://ollama.com), Python 3.10+, and Git.
+
+```bash
+# 1. Start local MongoDB Atlas (supports $vectorSearch + $rankFusion)
+docker compose up -d
+
+# 2. Pull local models (chat + embeddings)
+ollama pull qwen3.6:27b        # answer model  (or a smaller one, e.g. qwen3:14b)
+ollama pull qwen3:14b          # fast model    (indexing / planning / grading)
+ollama pull qwen3-embedding:4b # embeddings     (or nomic-embed-text, etc.)
+
+# 3. Install Python deps and configure
+pip install -r requirements.txt
+cp .env.example .env           # all defaults are local-first; edit if you like
+
+# 4. Run it
+python app.py                  # open the printed URL (default http://127.0.0.1:5001)
+```
+
+Point it at a local path (e.g. `.`), an `owner/repo`, or a GitHub URL, and it
+scans, indexes, and lets you search + chat.
+
+### Picking models
+
+Open the **Models** panel (top-right gear) to switch the embedding model, the
+answer model, and the fast model at runtime. The embedding picker lists every
+installed Ollama embedding model (plus Voyage's, if enabled) with its vector
+dimensions. Switching the embedding model re-embeds the current codebase in the
+background without re-running any LLM analysis. A health banner reports if Ollama
+or MongoDB is down and offers a one-click pull for any missing model.
+
+Nothing is hard-coded: on startup, if your configured embedding model isn't
+pulled yet, the app automatically falls back to an available local one so it
+still works out of the box.
+
+### Optional upgrade: Voyage AI
+
+Set `VOYAGE_API_KEY` in `.env` to unlock Voyage's specialized code embeddings
+(`voyage-code-3`) and the `rerank-2.5` reranker. They then appear in the model
+picker alongside the local models. Azure OpenAI can also be used as a chat
+provider by setting the `AZURE_OPENAI_*` variables; otherwise it stays off.
+
+### How the chat agent avoids one-shot failures
+
+Questions don't go straight to a single prompt. The agent runs a multi-step loop
+and streams its reasoning to the UI: **plan** (rewrite + classify + decompose the
+question), **retrieve** (hybrid search per sub-query), **grade** (rerank / filter
+hits), **expand** (pull referenced entities), a **sufficiency** check that can
+loop for more context, then **draft**, and finally **verify** citations and
+grounding (revising once if something isn't supported by the retrieved code).
+
+### Auditable pipelines: no more black box
+
+For bigger asks — *"scan this repo and generate a security report"*, *"what
+changed recently and where's the risk?"* — open the **Pipelines** panel (top-right,
+enabled once a scan completes). Instead of one giant prompt, the ask is broken
+into a JSON pipeline of small, inspectable steps:
+
+- **AI planning with selectable approaches.** An LLM (you pick which one) turns
+  your ask into a JSON pipeline. Choose how it decomposes: *thorough*, *fast*,
+  *git-forensic* (anchor on real commits/diffs), or *evidence-first* (verbatim
+  quotes + deterministic counts). Re-plan with another approach to compare
+  decompositions, or start from a built-in template.
+- **Deterministic steps produce the objective artifacts.** `git` (log / diff /
+  churn / contributors), `search` (grounded hybrid code search), and `transform`
+  (count/rank/slice) are plain code — zero tokens, identical on re-run.
+- **LLM steps are boxed in.** `extract` steps return small, typed JSON facts
+  with provenance (file path / commit sha / quote); the final `report` step may
+  only use the facts it's handed.
+- **Per-step model selection.** Every LLM step has its own model picker, so a
+  free local 8B model can do the extraction while a bigger model (or the same
+  small one) writes the report. Big one-shot prompts strain models and hide
+  failures; small steps don't.
+- **An editable, re-runnable audit trail.** Every step records its model, exact
+  prompt, inputs, raw output, timing, and status. Runs are persisted; load any
+  past run to inspect each step, tweak the spec, and run it again. When
+  something is wrong you can see *which step* failed — and fix just that step.
+
+Everything is editable before running: step order, instructions, queries,
+models, or the raw JSON spec itself. See
+[coding-agents-blog.md](coding-agents-blog.md) for the full story on why this
+architecture beats one-shot agents on both cost and trust.
+
+---
+
 We've all been there: starting a new job or joining a new team, you're faced with a sprawling, unfamiliar codebase. The `README` is a month out of date, and your only guide is the `git blame` history. Where do you even begin? The traditional approach involves hours of painstaking detective work, grepping for a `main` function and slowly piecing together the puzzle.
 
 What if you could have an expert AI architect sit with you, point out the critical files, and then answer your questions with complete transparency? And what if this entire powerful experience was delivered in a **single, self-contained Python script** you can run locally against any codebase?
