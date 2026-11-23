@@ -2,11 +2,14 @@
 
 ![](code-xplr.png)
 
+`separates "interpretability" (the unsolveable mystery of neural-network weights) from "auditability" (tracking exact prompts, tools, and context chunks), correctly framing the latter as a solvable engineering problem`
+
 ## Quickstart (local-first, free)
 
 code-xplorer runs entirely on your machine by default: [Ollama](https://ollama.com)
 for chat + embeddings, and a bundled local MongoDB Atlas container for hybrid
 search. No API keys required.
+
 
 **Prerequisites:** Docker, [Ollama](https://ollama.com), Python 3.10+, and Git.
 
