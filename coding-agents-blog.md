@@ -86,7 +86,15 @@ Honesty section, same as always:
 
 - **Grounding is not correctness.** A verbatim quote can still carry a wrong label or a wrong severity. The mechanical checks catch fabrication, not misclassification. Humans stay in the loop — the difference is the loop is now *possible*.
 - **Planning is still an LLM call.** A weak planner produces a weak decomposition. That's why the plan is JSON you can read, edit, and re-generate with a different approach or model — the planner proposes, you dispose.
-- **This covers the read-only half of the coding-agent loop.** The step types here (`git`, `search`, `extract`, `transform`, `report`) do comprehension and audit — security sweeps, architecture reviews, change forensics — not multi-file edits or fix-the-failing-test iteration. But nothing about the architecture stops there: a `patch` step that emits a diff (an objective artifact you can read before applying) and a `test` step whose pass/fail output is deterministic ground truth fit the same mold. The compiler and the test suite are the ultimate verbatim-quote checks — a patch either applies and passes or it doesn't. The write half is harder to box in, which is precisely why it deserves the box.
+- **This covers the read-only half of the coding-agent loop.** The step types here (`git`, `search`, `extract`, `transform`, `report`) do comprehension and audit — security sweeps, architecture reviews, change forensics — not multi-file edits or fix-the-failing-test iteration. But nothing about the architecture stops there. The write half is the same pattern with two more step types:
+
+  ```json
+  { "id": "fix",    "type": "patch", "inputs": ["extract_vulns"], "model": "llama3.1:latest",
+    "instructions": "Emit a unified diff fixing ONLY the cited findings. Touch nothing else." },
+  { "id": "verify", "type": "test",  "inputs": ["fix"], "params": { "cmd": "pytest -q" } }
+  ```
+
+  The `patch` step's diff is an objective artifact you can read before applying, and the `test` step's pass/fail output is deterministic ground truth — the compiler and the test suite are the ultimate verbatim-quote checks. A patch either applies and passes or it doesn't; a failing `verify` step points at exactly one `fix` step to redo. The write half is harder to box in, which is precisely why it deserves the box. (These two step types aren't in the shipped implementation yet — the snippet is the design, not a screenshot.)
 - **Not everything decomposes cleanly.** Tight, genuinely interdependent reasoning sometimes really does want one big context. Pipelines shine for the broad, auditable asks — security sweeps, architecture overviews, change forensics, "make me a report" — which, not coincidentally, are the asks where one-shot agents burn the most tokens for the least traceable output.
 - **This is a teaching implementation.** Step types are intentionally few (`git`, `search`, `extract`, `transform`, `report`) so the system itself stays auditable.
 
