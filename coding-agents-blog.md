@@ -26,6 +26,8 @@ I want to be careful here — this is about structural incentives, not accusatio
 - **Architecture follows the business model.** If you monetize usage, the one-big-agent architecture is *great*: every retry, every bloated context window, every unnecessary re-read of your repo is billable. An architecture that routed 80% of the work to deterministic code and a free local 8B model would be better engineering — and worse quarterly numbers.
 - **Opacity is a moat.** If you could see exactly which step consumed which tokens and produced which output, you could compare vendors, swap models per step, or run steps locally. A single opaque "agent run" resists exactly that kind of unbundling.
 
+To be fair, incentives aren't the only force at work. One giant loop is also the *easiest architecture to ship* for arbitrary tasks: a general-purpose agent with a handful of tools generalizes to anything, while a pipeline of typed steps has to be designed, planned, and validated per class of ask. Horizontal products favor the loop for honest engineering reasons. But notice that this convenience and the incentive gradient point the *same direction* — which is exactly why you shouldn't expect the market to drift toward efficiency and transparency on its own.
+
 None of this requires anyone to be a villain. It just means you shouldn't expect the cost problem and the black-box problem to be solved *for* you by companies whose architecture and partnerships quietly benefit from both. If you want efficiency and auditability, they have to be architectural properties you choose.
 
 ## 3. The alternative: break the ask into a pipeline
@@ -38,13 +40,12 @@ In [code-xplorer](https://github.com/ranfysvalle02/code-xplorer), an ask like *"
 {
   "name": "Security Scan Report",
   "steps": [
-    { "id": "git_log",       "type": "git",       "params": { "op": "log" } },
     { "id": "search_vulns",  "type": "search",    "params": { "query": "password secret sql injection subprocess shell" } },
     { "id": "extract_vulns", "type": "extract",   "inputs": ["search_vulns"], "model": "llama3.1:latest",
-      "instructions": "Extract JSON facts: {claim, file, evidence (verbatim quote)}. Only facts grounded in the inputs." },
+      "instructions": "Extract JSON facts: {claim, severity, file, evidence (verbatim quote)}. Only facts grounded in the inputs." },
     { "id": "rank",          "type": "transform", "inputs": ["extract_vulns"], "params": { "op": "count_by", "field": "severity" } },
-    { "id": "report",        "type": "report",    "inputs": ["rank"], "model": "llama3.1:latest",
-      "instructions": "Write a Markdown report citing the file paths provided. Do not invent anything." }
+    { "id": "report",        "type": "report",    "inputs": ["extract_vulns", "rank"], "model": "llama3.1:latest",
+      "instructions": "Write a Markdown report citing the file paths and quotes provided. Do not invent anything." }
   ]
 }
 ```
@@ -65,7 +66,7 @@ Five design decisions carry all the weight:
 
 I ran this on a deliberately insecure demo repo — hardcoded admin password, MD5 hashing, SQL injection via string formatting, `subprocess` with `shell=True`, a password reset that prints `"changeme123"`.
 
-The AI-planned, six-step pipeline ran **entirely on local models (Llama 3.1 8B — free, on a laptop)** in about **12 seconds of LLM time**, and the final report contained findings like:
+The AI-planned, six-step variant of this pipeline (the planner also led with a `git log` step and paired it with its own `extract`, so commit history got the same evidence treatment as the code) ran **entirely on local models (Llama 3.1 8B — free, on a laptop)** in about **12 seconds of LLM time**, and the final report contained findings like:
 
 > **Insecure Backup Function** — `db.py` — Evidence: `subprocess.call("tar -czf backup.tgz " + path, shell=True)`
 >
@@ -83,6 +84,7 @@ Honesty section, same as always:
 
 - **Grounding is not correctness.** A verbatim quote can still carry a wrong label or a wrong severity. The mechanical checks catch fabrication, not misclassification. Humans stay in the loop — the difference is the loop is now *possible*.
 - **Planning is still an LLM call.** A weak planner produces a weak decomposition. That's why the plan is JSON you can read, edit, and re-generate with a different approach or model — the planner proposes, you dispose.
+- **This covers the read-only half of the coding-agent loop.** The step types here (`git`, `search`, `extract`, `transform`, `report`) do comprehension and audit — security sweeps, architecture reviews, change forensics — not multi-file edits or fix-the-failing-test iteration. But nothing about the architecture stops there: a `patch` step that emits a diff (an objective artifact you can read before applying) and a `test` step whose pass/fail output is deterministic ground truth fit the same mold. The compiler and the test suite are the ultimate verbatim-quote checks — a patch either applies and passes or it doesn't. The write half is harder to box in, which is precisely why it deserves the box.
 - **Not everything decomposes cleanly.** Tight, genuinely interdependent reasoning sometimes really does want one big context. Pipelines shine for the broad, auditable asks — security sweeps, architecture overviews, change forensics, "make me a report" — which, not coincidentally, are the asks where one-shot agents burn the most tokens for the least traceable output.
 - **This is a teaching implementation.** Step types are intentionally few (`git`, `search`, `extract`, `transform`, `report`) so the system itself stays auditable.
 
